@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "RTIOW"
+name = "Rtweekend"
 version = "0.1.0"
