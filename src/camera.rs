@@ -3,13 +3,15 @@ use crate::{
     interval::Interval,
     object::{HRecord, Object},
     ray::Ray,
-    renderer, utils,
+    renderer,
+    utils::random,
     vec3::{Color, Point, Vec3},
 };
 
 pub struct Camera {
     pub aspect_ratio: f32,
     pub img_w: usize,
+    pub samples_per_pixel: usize,
 
     img_h: usize,
     center: Point,
@@ -19,7 +21,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(aspect_ratio: f32, img_w: usize) -> Self {
+    pub fn new(aspect_ratio: f32, img_w: usize, samples_per_pixel: usize) -> Self {
         let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
 
         let focal_len = 1.0;
@@ -39,6 +41,7 @@ impl Camera {
         Self {
             aspect_ratio,
             img_w,
+            samples_per_pixel,
             img_h,
             center,
             px_del_u,
@@ -46,21 +49,24 @@ impl Camera {
             px00_loc,
         }
     }
+
     pub fn render(&mut self, world: &dyn Object) -> Image {
         let mut img = Image::new(self.img_w, self.img_h);
 
-        renderer::render(&mut img, |x, y| {
+        renderer::render(&mut img, self.samples_per_pixel, |x, y, _s| {
             let r = self.get_ray(x, y);
-            let c = self.ray_color(&r, world);
-            utils::to_u8(c)
+            self.ray_color(&r, world)
         });
 
         img
     }
 
     fn get_ray(&self, x: usize, y: usize) -> Ray {
-        let px_center = self.px00_loc + self.px_del_u * x as f32 + self.px_del_v * y as f32;
-        let ray_dir = px_center - self.center;
+        let offset = sample_square();
+        let px_sample = self.px00_loc
+            + self.px_del_u * (x as f32 + offset.x)
+            + self.px_del_v * (y as f32 + offset.y);
+        let ray_dir = px_sample - self.center;
         Ray::new(self.center, ray_dir)
     }
 
@@ -80,4 +86,8 @@ impl Camera {
         let a = 0.5 * (unit_dir.y + 1.0);
         (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
     }
+}
+
+fn sample_square() -> Vec3 {
+    Vec3::new(random() - 0.5, random() - 0.5, 0.0)
 }
