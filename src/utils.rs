@@ -88,7 +88,11 @@ pub fn print_progress(
         eta_str,
     );
 
-    print!("\r{}{}", line, " ".repeat(80usize.saturating_sub(line.len())));
+    print!(
+        "\r{}{}",
+        line,
+        " ".repeat(80usize.saturating_sub(line.len()))
+    );
     io::stdout().flush().unwrap();
 }
 

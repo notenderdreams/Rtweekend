@@ -5,13 +5,14 @@ use crate::{
     ray::Ray,
     renderer,
     utils::random,
-    vec3::{Color, Point, Vec3},
+    vec3::{Color, Point, Vec3, random_on_hemisphere},
 };
 
 pub struct Camera {
     pub aspect_ratio: f32,
     pub img_w: usize,
     pub samples_per_pixel: usize,
+    pub max_depth: usize,
 
     img_h: usize,
     center: Point,
@@ -21,7 +22,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(aspect_ratio: f32, img_w: usize, samples_per_pixel: usize) -> Self {
+    pub fn new(
+        aspect_ratio: f32,
+        img_w: usize,
+        samples_per_pixel: usize,
+        max_depth: usize,
+    ) -> Self {
         let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
 
         let focal_len = 1.0;
@@ -42,6 +48,7 @@ impl Camera {
             aspect_ratio,
             img_w,
             samples_per_pixel,
+            max_depth,
             img_h,
             center,
             px_del_u,
@@ -55,7 +62,7 @@ impl Camera {
 
         renderer::render(&mut img, self.samples_per_pixel, |x, y, _s| {
             let r = self.get_ray(x, y);
-            self.ray_color(&r, world)
+            self.ray_color(&r, world, self.max_depth)
         });
 
         img
@@ -70,7 +77,11 @@ impl Camera {
         Ray::new(self.center, ray_dir)
     }
 
-    fn ray_color(&self, r: &Ray, world: &dyn Object) -> Color {
+    fn ray_color(&self, r: &Ray, world: &dyn Object, depth: usize) -> Color {
+        if depth == 0 {
+            return Color::zero();
+        }
+
         let mut rec = HRecord {
             p: Point::zero(),
             normal: Vec3::zero(),
@@ -78,8 +89,10 @@ impl Camera {
             front_face: false,
         };
 
-        if world.hit(r, Interval::new(0.0, f32::INFINITY), &mut rec) {
-            return 0.5 * (rec.normal + Color::new(1.0, 1.0, 1.0));
+        if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
+            let direction = random_on_hemisphere(rec.normal);
+            let bounced = Ray::new(rec.p, direction);
+            return 0.5 * self.ray_color(&bounced, world, depth - 1);
         }
 
         let unit_dir = r.direction.normalize();

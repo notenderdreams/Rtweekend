@@ -34,7 +34,15 @@ where
         }
     }
 
-    print_progress(done, total_samples, w - 1, h - 1, samples_per_pixel, samples_per_pixel, start);
+    print_progress(
+        done,
+        total_samples,
+        w - 1,
+        h - 1,
+        samples_per_pixel,
+        samples_per_pixel,
+        start,
+    );
     println!("\nDone in {:.2}s", start.elapsed().as_secs_f32());
     show_cursor();
 }
