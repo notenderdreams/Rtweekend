@@ -3,6 +3,8 @@ use std::{
     time::Instant,
 };
 
+use crate::vec3::Color;
+
 pub fn clear_screen() {
     print!("\x1b[2J"); // clear screen
     print!("\x1b[H"); // move cursor to 0,0
@@ -47,4 +49,12 @@ pub fn print_progress(done: usize, total: usize, start: Instant) {
 
     print!("\r{}{}", line, " ".repeat(80 - line.len().min(80)));
     io::stdout().flush().unwrap();
+}
+
+pub fn to_u8(c: Color) -> (u8, u8, u8) {
+    (
+        (255.999 * c.x) as u8,
+        (255.999 * c.y) as u8,
+        (255.999 * c.z) as u8,
+    )
 }

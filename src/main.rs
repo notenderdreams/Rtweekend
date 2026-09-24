@@ -1,14 +1,20 @@
 mod image;
+mod object;
+mod object_list;
 mod ray;
 mod renderer;
+mod sphere;
 mod utils;
 mod vec3;
 
-use image::Image;
-use ray::Ray;
-use vec3::Color;
-
-use crate::vec3::{Point, Vec3};
+use crate::{
+    image::Image,
+    object::{HRecord, Object},
+    object_list::ObjectList,
+    ray::Ray,
+    sphere::Sphere,
+    vec3::{Color, Point, Vec3},
+};
 
 fn main() {
     let aspect_ratio = 16.0 / 9.0;
@@ -16,6 +22,10 @@ fn main() {
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
 
     let mut img = Image::new(img_w, img_h);
+
+    let mut world = ObjectList::new();
+    world.add(Box::new(Sphere::new(Point::new(0.0, 0.0, -1.0), 0.5)));
+    world.add(Box::new(Sphere::new(Point::new(0.0, -100.5, -1.0), 100.0)));
 
     let focal_len = 1.0;
     let vp_h = 2.0;
@@ -36,44 +46,27 @@ fn main() {
         let ray_direction = pixel_center - cam_center;
         let r = Ray::new(cam_center, ray_direction);
 
-        let color = ray_color(&r);
-        to_u8(color)
+        let color = ray_color(&r, &world);
+        utils::to_u8(color)
     });
 
     utils::clear_screen();
     println!("{}", img);
 }
 
-fn hit_sphere(center: Point, radius: f32, r: &Ray) -> f32 {
-    let oc = center - r.origin;
-    let a = r.direction.len_squared();
-    let h = r.direction.dot(oc);
-    let c = oc.len_squared() - radius * radius;
-    let discriminant = h * h - a * c;
-    if discriminant < 0.0 {
-        -1.0
-    } else {
-        (h - discriminant.sqrt()) / a
-    }
-}
+fn ray_color(r: &Ray, world: &dyn Object) -> Color {
+    let mut rec = HRecord {
+        p: Point::zero(),
+        normal: Vec3::zero(),
+        t: 0.0,
+        front_face: false,
+    };
 
-fn ray_color(r: &Ray) -> Color {
-    let center = Point::new(0.0, 0.0, -1.0);
-    let t = hit_sphere(center, 0.5, r);
-    if t > 0.0 {
-        let n = (r.at(t) - center).normalize();
-        return 0.5 * Color::new(n.x + 1.0, n.y + 1.0, n.z + 1.0);
+    if world.hit(r, 0.0, f32::INFINITY, &mut rec) {
+        return 0.5 * (rec.normal + Color::new(1.0, 1.0, 1.0));
     }
 
     let unit_dir = r.direction.normalize();
     let a = 0.5 * (unit_dir.y + 1.0);
     (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
-}
-
-fn to_u8(c: Color) -> (u8, u8, u8) {
-    (
-        (255.999 * c.x) as u8,
-        (255.999 * c.y) as u8,
-        (255.999 * c.z) as u8,
-    )
 }
