@@ -1,4 +1,5 @@
 use crate::{
+    interval::Interval,
     object::{HRecord, Object},
     ray::Ray,
     vec3::Point,
@@ -19,7 +20,7 @@ impl Sphere {
 }
 
 impl Object for Sphere {
-    fn hit(&self, r: &Ray, tmin: f32, tmax: f32, rec: &mut HRecord) -> bool {
+    fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool {
         let oc = self.center - r.origin;
         let a = r.direction.len_squared();
         let h = r.direction.dot(oc);
@@ -33,9 +34,9 @@ impl Object for Sphere {
         let sqrtd = discriminant.sqrt();
 
         let mut root = (h - sqrtd) / a;
-        if root <= tmin || root >= tmax {
+        if !ray_t.surrounds(root) {
             root = (h + sqrtd) / a;
-            if root <= tmin || tmax <= root {
+            if !ray_t.surrounds(root) {
                 return false;
             }
         }

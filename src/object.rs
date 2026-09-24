@@ -1,4 +1,5 @@
 use crate::{
+    interval::Interval,
     ray::Ray,
     vec3::{Point, Vec3},
 };
@@ -22,5 +23,5 @@ impl HRecord {
 }
 
 pub trait Object {
-    fn hit(&self, r: &Ray, tmin: f32, tmax: f32, rec: &mut HRecord) -> bool;
+    fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool;
 }

@@ -1,4 +1,5 @@
 use crate::{
+    interval::Interval,
     object::{HRecord, Object},
     ray::Ray,
     vec3::{Point, Vec3},
@@ -22,9 +23,9 @@ impl ObjectList {
 }
 
 impl Object for ObjectList {
-    fn hit(&self, r: &Ray, tmin: f32, tmax: f32, rec: &mut HRecord) -> bool {
+    fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool {
         let mut hit_anything = false;
-        let mut closest = tmax;
+        let mut closest_so_far = ray_t.max;
 
         for obj in &self.objects {
             let mut tmp_rec = HRecord {
@@ -33,9 +34,9 @@ impl Object for ObjectList {
                 t: 0.0,
                 front_face: false,
             };
-            if obj.hit(r, tmin, closest, &mut tmp_rec) {
+            if obj.hit(r, Interval::new(ray_t.min, closest_so_far), &mut tmp_rec) {
                 hit_anything = true;
-                closest = tmp_rec.t;
+                closest_so_far = tmp_rec.t;
                 *rec = tmp_rec;
             }
         }
