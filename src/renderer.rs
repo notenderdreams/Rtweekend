@@ -5,7 +5,7 @@ use crate::utils::*;
 
 pub fn render<F>(img: &mut Image, mut shader: F)
 where
-    F: FnMut(usize, usize, usize, usize) -> (u8, u8, u8),
+    F: FnMut(usize, usize) -> (u8, u8, u8),
 {
     let total = img.w() * img.h();
     let mut done = 0;
@@ -14,7 +14,7 @@ where
 
     for y in 0..img.h() {
         for x in 0..img.w() {
-            let (r, g, b) = shader(x, y, img.w(), img.h());
+            let (r, g, b) = shader(x, y);
             img.set_px(x, y, r, g, b);
             done += 1;
             if done % 400 == 0 {
