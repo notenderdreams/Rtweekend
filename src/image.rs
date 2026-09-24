@@ -37,6 +37,21 @@ impl Image {
     pub fn w(&self) -> usize {
         self.w
     }
+
+    pub fn to_ppm(&self) -> String {
+        let mut ppm = format!("P3\n{} {}\n255\n", self.w, self.h);
+
+        for y in 0..self.h {
+            for x in 0..self.w {
+                let (r, g, b) = self.get_px(x, y);
+
+                ppm.push_str(&format!("{} {} {} ", r, g, b));
+            }
+            ppm.push('\n');
+        }
+
+        ppm
+    }
 }
 
 impl fmt::Display for Image {

@@ -24,6 +24,7 @@ fn main() {
     let mut cam = Camera::new(aspect_ratio, img_w, samples_per_pixel, max_depth);
     let img = cam.render(&world);
 
-    utils::clear_screen();
-    println!("{}", img);
+    // utils::clear_screen();
+    // println!("{}", img);
+    std::fs::write("output.ppm", img.to_ppm()).unwrap();
 }
