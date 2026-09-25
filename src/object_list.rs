@@ -28,12 +28,8 @@ impl Object for ObjectList {
         let mut closest_so_far = ray_t.max;
 
         for obj in &self.objects {
-            let mut tmp_rec = HRecord {
-                p: Point::zero(),
-                normal: Vec3::zero(),
-                t: 0.0,
-                front_face: false,
-            };
+            let mut tmp_rec = HRecord::new();
+            
             if obj.hit(r, Interval::new(ray_t.min, closest_so_far), &mut tmp_rec) {
                 hit_anything = true;
                 closest_so_far = tmp_rec.t;

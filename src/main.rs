@@ -1,4 +1,5 @@
 mod camera;
+mod material;
 mod image;
 mod interval;
 mod object;
@@ -9,12 +10,32 @@ mod sphere;
 mod utils;
 mod vec3;
 
-use crate::{camera::Camera, object_list::ObjectList, sphere::Sphere, vec3::Point};
+use std::sync::Arc;
+
+use crate::{camera::Camera, material::Lambertian, object_list::ObjectList, sphere::Sphere, vec3::{Color, Point}};
 
 fn main() {
     let mut world = ObjectList::new();
-    world.add(Box::new(Sphere::new(Point::new(0.0, 0.0, -1.0), 0.5)));
-    world.add(Box::new(Sphere::new(Point::new(0.0, -100.5, -1.0), 100.0)));
+    
+    let material_ground = Arc::new(Lambertian::new(
+        Color::new(0.8, 0.8, 0.0),
+    ));
+
+    let material_center = Arc::new(Lambertian::new(
+        Color::new(0.1, 0.2, 0.5),
+    ));
+
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, -100.5, -1.0),
+        100.0,
+        material_ground,
+    )));
+
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, 0.0, -1.0),
+        0.5,
+        material_center,
+    )));
 
     let aspect_ratio = 16.0 / 9.0;
     let img_w: usize = 400;

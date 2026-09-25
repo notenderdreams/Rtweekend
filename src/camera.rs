@@ -82,17 +82,15 @@ impl Camera {
             return Color::zero();
         }
 
-        let mut rec = HRecord {
-            p: Point::zero(),
-            normal: Vec3::zero(),
-            t: 0.0,
-            front_face: false,
-        };
+        let mut rec = HRecord::new();
 
         if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
-            let direction = rec.normal + random_unit_vector();
-            let bounced = Ray::new(rec.p, direction);
-            return 0.5 * self.ray_color(&bounced, world, depth - 1);
+            if let Some(mat) = &rec.mat {
+                if let Some((attenuation, scattered)) = mat.scatter(r, &rec) {
+                    return attenuation * self.ray_color(&scattered, world, depth - 1);
+                }
+            }
+            return Color::zero();
         }
 
         let unit_dir = r.direction.normalize();

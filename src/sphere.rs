@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use crate::{
     interval::Interval,
+    material::Material,
     object::{HRecord, Object},
     ray::Ray,
     vec3::Point,
@@ -8,13 +11,15 @@ use crate::{
 pub struct Sphere {
     center: Point,
     radius: f32,
+    mat: Arc<dyn Material>,
 }
 
 impl Sphere {
-    pub fn new(center: Point, radius: f32) -> Self {
+    pub fn new(center: Point, radius: f32, mat: Arc<dyn Material>) -> Self {
         Self {
             center,
             radius: radius.max(0.0),
+            mat,
         }
     }
 }
@@ -34,6 +39,7 @@ impl Object for Sphere {
         let sqrtd = discriminant.sqrt();
 
         let mut root = (h - sqrtd) / a;
+
         if !ray_t.surrounds(root) {
             root = (h + sqrtd) / a;
             if !ray_t.surrounds(root) {
@@ -43,8 +49,11 @@ impl Object for Sphere {
 
         rec.t = root;
         rec.p = r.at(rec.t);
+
         let outward_normal = (rec.p - self.center) / self.radius;
+
         rec.set_face_normal(r, outward_normal);
+        rec.mat = Some(Arc::clone(&self.mat));
 
         true
     }
