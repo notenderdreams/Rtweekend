@@ -5,7 +5,7 @@ use crate::{
     ray::Ray,
     renderer,
     utils::random,
-    vec3::{Color, Point, Vec3, random_on_hemisphere},
+    vec3::{Color, Point, Vec3, random_unit_vector},
 };
 
 pub struct Camera {
@@ -90,7 +90,7 @@ impl Camera {
         };
 
         if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
-            let direction = random_on_hemisphere(rec.normal);
+            let direction = rec.normal + random_unit_vector();
             let bounced = Ray::new(rec.p, direction);
             return 0.5 * self.ray_color(&bounced, world, depth - 1);
         }
