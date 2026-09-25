@@ -55,24 +55,10 @@ impl Vec3 {
     pub fn normalize(&self) -> Self {
         *self / self.len()
     }
-}
 
-pub fn random_unit_vector() -> Vec3 {
-    loop {
-        let p = Vec3::rand_in(-1.0, 1.0);
-        let lensq = p.len_squared();
-        if 1e-38 < lensq && lensq <= 1.0 {
-            return p.normalize();
-        }
-    }
-}
-
-pub fn random_on_hemisphere(normal: Vec3) -> Vec3 {
-    let on_unit_sphere = random_unit_vector();
-    if on_unit_sphere.dot(normal) > 0.0 {
-        on_unit_sphere
-    } else {
-        -on_unit_sphere
+    pub fn near_zero(&self) -> bool {
+        let s = 1e-8;
+        (self.x.abs() < s) && (self.y.abs() < s) && (self.z.abs() < s)
     }
 }
 
@@ -124,4 +110,27 @@ impl Neg for Vec3 {
     fn neg(self) -> Self {
         Self::new(-self.x, -self.y, -self.z)
     }
+}
+
+pub fn random_unit_vector() -> Vec3 {
+    loop {
+        let p = Vec3::rand_in(-1.0, 1.0);
+        let lensq = p.len_squared();
+        if 1e-38 < lensq && lensq <= 1.0 {
+            return p.normalize();
+        }
+    }
+}
+
+pub fn random_on_hemisphere(normal: Vec3) -> Vec3 {
+    let on_unit_sphere = random_unit_vector();
+    if on_unit_sphere.dot(normal) > 0.0 {
+        on_unit_sphere
+    } else {
+        -on_unit_sphere
+    }
+}
+
+pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
+    v - 2.0 * v.dot(n) * n
 }

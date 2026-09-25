@@ -1,7 +1,7 @@
 mod camera;
-mod material;
 mod image;
 mod interval;
+mod material;
 mod object;
 mod object_list;
 mod ray;
@@ -12,31 +12,52 @@ mod vec3;
 
 use std::sync::Arc;
 
-use crate::{camera::Camera, material::Lambertian, object_list::ObjectList, sphere::Sphere, vec3::{Color, Point}};
+use crate::{
+    camera::Camera,
+    material::{Lambertian, Metal},
+    object_list::ObjectList,
+    sphere::Sphere,
+    vec3::{Color, Point},
+};
 
 fn main() {
     let mut world = ObjectList::new();
-    
-    let material_ground = Arc::new(Lambertian::new(
-        Color::new(0.8, 0.8, 0.0),
-    ));
 
-    let material_center = Arc::new(Lambertian::new(
-        Color::new(0.1, 0.2, 0.5),
-    ));
+    // Materials
+    let material_ground = Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    let material_center = Arc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));
+    let material_left = Arc::new(Metal::new(Color::new(0.8, 0.8, 0.8), 0.3));
+    let material_right = Arc::new(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0));
 
+    // Ground sphere
     world.add(Box::new(Sphere::new(
         Point::new(0.0, -100.5, -1.0),
         100.0,
         material_ground,
     )));
 
+    // Center diffuse sphere
     world.add(Box::new(Sphere::new(
-        Point::new(0.0, 0.0, -1.0),
+        Point::new(0.0, 0.0, -1.2),
         0.5,
         material_center,
     )));
 
+    // Left metal sphere
+    world.add(Box::new(Sphere::new(
+        Point::new(-1.0, 0.0, -1.0),
+        0.5,
+        material_left,
+    )));
+
+    // Right metal sphere
+    world.add(Box::new(Sphere::new(
+        Point::new(1.0, 0.0, -1.0),
+        0.5,
+        material_right,
+    )));
+
+    // Camera
     let aspect_ratio = 16.0 / 9.0;
     let img_w: usize = 400;
     let samples_per_pixel: usize = 100;
