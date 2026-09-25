@@ -1,7 +1,7 @@
 use crate::{
     object::HRecord,
     ray::Ray,
-    vec3::{Color, random_unit_vector, reflect},
+    vec3::{Color, random_unit_vector, reflect, refract},
 };
 
 pub trait Material: Send + Sync {
@@ -49,5 +49,42 @@ impl Material for Metal {
             return None;
         }
         Some((self.albedo, scattered))
+    }
+}
+
+pub struct Dielectric {
+    pub refraction_index: f32,
+}
+impl Dielectric {
+    pub fn new(refraction_index: f32) -> Self {
+        Self { refraction_index }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)> {
+        let attenuation = Color::new(1.0, 1.0, 1.0);
+
+        let ri = if hit.front_face {
+            1.0 / self.refraction_index
+        } else {
+            self.refraction_index
+        };
+
+        let unit_direction = ray.direction.normalize();
+
+        let cos_theta = (-unit_direction).dot(hit.normal).min(1.0);
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+
+        let cant_reflect = ri * sin_theta > 1.0;
+
+        let direction = if cant_reflect {
+            reflect(unit_direction, hit.normal)
+        } else {
+            refract(unit_direction, hit.normal, ri)
+        };
+
+        let scattered = Ray::new(hit.p, direction);
+        Some((attenuation, scattered))
     }
 }
