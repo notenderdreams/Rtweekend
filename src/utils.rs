@@ -7,19 +7,56 @@ use std::{
 use crate::{interval::Interval, vec3::Color};
 
 // xorshift64
-static SEED: AtomicU64 = AtomicU64::new(0x853c_49e6_748f_ea9b);
+static SEED_COUNTER: AtomicU64 = AtomicU64::new(0x853c_49e6_748f_ea9b);
 
-pub fn random() -> f32 {
-    let mut x = SEED.load(Ordering::Relaxed);
-    x ^= x << 13;
-    x ^= x >> 7;
-    x ^= x << 17;
-    SEED.store(x, Ordering::Relaxed);
-    ((x >> 40) as f32) / ((1u64 << 24) as f32)
+#[derive(Clone, Copy)]
+pub struct Rng {
+    state: u64,
 }
 
-pub fn random_range(min: f32, max: f32) -> f32 {
-    min + (max - min) * random()
+impl Rng {
+    pub fn new(seed: u64) -> Self {
+        Self {
+            state: if seed == 0 {
+                0x853c_49e6_748f_ea9b
+            } else {
+                seed
+            },
+        }
+    }
+
+    pub fn from_entropy() -> Self {
+        let mut z = SEED_COUNTER.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed);
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        Self::new(z ^ (z >> 31))
+    }
+
+    #[inline(always)]
+    pub fn next_u64(&mut self) -> u64 {
+        let mut x = self.state;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        self.state = x;
+        x
+    }
+
+    #[inline(always)]
+    pub fn random(&mut self) -> f32 {
+        ((self.next_u64() >> 40) as f32) / ((1u64 << 24) as f32)
+    }
+
+    #[inline(always)]
+    pub fn random_range(&mut self, min: f32, max: f32) -> f32 {
+        min + (max - min) * self.random()
+    }
+}
+
+impl Default for Rng {
+    fn default() -> Self {
+        Self::from_entropy()
+    }
 }
 
 pub fn clear_screen() {

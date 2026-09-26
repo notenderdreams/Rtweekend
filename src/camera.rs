@@ -7,7 +7,7 @@ use crate::{
     object::{HRecord, Object},
     ray::Ray,
     renderer,
-    utils::random,
+    utils::Rng,
     vec3::{random_in_unit_disk, Color, Point, Vec3},
 };
 
@@ -173,12 +173,12 @@ impl Camera {
             let is_clay = preview.map_or(false, |p| p.clay.load(Ordering::Relaxed));
             let samples = if is_clay { 1 } else { self.samples_per_pixel };
 
-            renderer::render(&mut img, samples, preview, |x, y, _s| {
-                let r = self.get_ray(x, y);
+            renderer::render(&mut img, samples, preview, |x, y, _s, rng| {
+                let r = self.get_ray(x, y, rng);
                 if is_clay {
                     self.clay_color(&r, world)
                 } else {
-                    self.ray_color(&r, world, self.max_depth)
+                    self.ray_color(&r, world, self.max_depth, rng)
                 }
             });
 
@@ -194,8 +194,8 @@ impl Camera {
         }
     }
 
-    fn get_ray(&self, x: usize, y: usize) -> Ray {
-        let offset = sample_square();
+    fn get_ray(&self, x: usize, y: usize, rng: &mut Rng) -> Ray {
+        let offset = sample_square(rng);
         let px_sample = self.px00_loc
             + self.px_del_u * (x as f32 + offset.x)
             + self.px_del_v * (y as f32 + offset.y);
@@ -203,19 +203,19 @@ impl Camera {
         let ray_origin = if self.defocus_angle <= 0.0 {
             self.center
         } else {
-            self.defocus_disk_sample()
+            self.defocus_disk_sample(rng)
         };
 
         let ray_dir = px_sample - ray_origin;
         Ray::new(ray_origin, ray_dir)
     }
 
-    fn defocus_disk_sample(&self) -> Point {
-        let p = random_in_unit_disk();
+    fn defocus_disk_sample(&self, rng: &mut Rng) -> Point {
+        let p = random_in_unit_disk(rng);
         self.center + (self.defocus_disk_u * p.x) + (self.defocus_disk_v * p.y)
     }
 
-    fn ray_color(&self, r: &Ray, world: &dyn Object, depth: usize) -> Color {
+    fn ray_color(&self, r: &Ray, world: &dyn Object, depth: usize, rng: &mut Rng) -> Color {
         if depth == 0 {
             return Color::zero();
         }
@@ -224,8 +224,8 @@ impl Camera {
 
         if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
             if let Some(mat) = &rec.mat {
-                if let Some((attenuation, scattered)) = mat.scatter(r, &rec) {
-                    return attenuation * self.ray_color(&scattered, world, depth - 1);
+                if let Some((attenuation, scattered)) = mat.scatter(r, &rec, rng) {
+                    return attenuation * self.ray_color(&scattered, world, depth - 1, rng);
                 }
             }
             return Color::zero();
@@ -253,6 +253,6 @@ impl Camera {
     }
 }
 
-fn sample_square() -> Vec3 {
-    Vec3::new(random() - 0.5, random() - 0.5, 0.0)
+fn sample_square(rng: &mut Rng) -> Vec3 {
+    Vec3::new(rng.random() - 0.5, rng.random() - 0.5, 0.0)
 }

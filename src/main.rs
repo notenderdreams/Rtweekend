@@ -19,14 +19,15 @@ use crate::{
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
     sphere::Sphere,
-    utils::{random, random_range},
+    utils::Rng,
     vec3::{Color, Point, Vec3},
 };
 
 fn main() {
     let mut world = ObjectList::new();
+    let mut rng = Rng::new(0);
 
-    scene_setup(&mut world);
+    scene_setup(&mut world, &mut rng);
     let world = Arc::new(world);
 
     // Camera
@@ -59,7 +60,7 @@ fn main() {
     }
 }
 
-fn scene_setup(world: &mut ObjectList) {
+fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
     // Ground sphere
     let m_ground = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
     world.add(Box::new(Sphere::new(
@@ -71,14 +72,14 @@ fn scene_setup(world: &mut ObjectList) {
     // Scattered Ballz
     for a in -11..11 {
         for b in -11..11 {
-            let choose_mat = random();
-            let center = Point::new(a as f32 + 0.9 * random(), 0.2, b as f32 + 0.9 * random());
+            let choose_mat = rng.random();
+            let center = Point::new(a as f32 + 0.9 * rng.random(), 0.2, b as f32 + 0.9 * rng.random());
 
             if (center - Point::new(4.0, 0.2, 0.0)).len() > 0.9 {
                 let mat: Arc<dyn Material> = match choose_mat {
-                    x if x < 0.8 => Arc::new(Lambertian::new(Color::rand() * Color::rand())),
+                    x if x < 0.8 => Arc::new(Lambertian::new(Color::rand(rng) * Color::rand(rng))),
                     x if x < 0.95 => {
-                        Arc::new(Metal::new(Color::rand_in(0.5, 1.0), random_range(0.0, 0.5)))
+                        Arc::new(Metal::new(Color::rand_in(0.5, 1.0, rng), rng.random_range(0.0, 0.5)))
                     }
                     _ => Arc::new(Dielectric::new(1.5)),
                 };

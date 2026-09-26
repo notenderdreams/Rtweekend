@@ -1,12 +1,12 @@
 use crate::{
     object::HRecord,
     ray::Ray,
-    utils::random,
-    vec3::{Color, random_unit_vector, reflect, refract},
+    utils::Rng,
+    vec3::{random_unit_vector, reflect, refract, Color},
 };
 
 pub trait Material: Send + Sync {
-    fn scatter(&self, ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)>;
+    fn scatter(&self, ray: &Ray, hit: &HRecord, rng: &mut Rng) -> Option<(Color, Ray)>;
 }
 
 pub struct Lambertian {
@@ -20,8 +20,8 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)> {
-        let mut direction = hit.normal + random_unit_vector();
+    fn scatter(&self, _ray: &Ray, hit: &HRecord, rng: &mut Rng) -> Option<(Color, Ray)> {
+        let mut direction = hit.normal + random_unit_vector(rng);
         if direction.near_zero() {
             direction = hit.normal;
         }
@@ -42,9 +42,9 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(&self, ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)> {
+    fn scatter(&self, ray: &Ray, hit: &HRecord, rng: &mut Rng) -> Option<(Color, Ray)> {
         let reflected = reflect(ray.direction.normalize(), hit.normal);
-        let direction = reflected + self.fuzz * random_unit_vector();
+        let direction = reflected + self.fuzz * random_unit_vector(rng);
         let scattered = Ray::new(hit.p, direction);
         if scattered.direction.dot(hit.normal) <= 0.0 {
             return None;
@@ -68,7 +68,7 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)> {
+    fn scatter(&self, ray: &Ray, hit: &HRecord, rng: &mut Rng) -> Option<(Color, Ray)> {
         let attenuation = Color::new(1.0, 1.0, 1.0);
 
         let ri = if hit.front_face {
@@ -84,7 +84,7 @@ impl Material for Dielectric {
 
         let cant_refract = ri * sin_theta > 1.0;
 
-        let direction = if cant_refract || Self::reflectance(cos_theta, ri) > random() {
+        let direction = if cant_refract || Self::reflectance(cos_theta, ri) > rng.random() {
             reflect(unit_direction, hit.normal)
         } else {
             refract(unit_direction, hit.normal, ri)

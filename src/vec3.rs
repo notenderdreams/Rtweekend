@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use crate::utils::random_range;
+use crate::utils::Rng;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
@@ -21,18 +21,18 @@ impl Vec3 {
         Self::new(0.0, 0.0, 0.0)
     }
 
-    pub fn rand() -> Self {
+    pub fn rand(rng: &mut Rng) -> Self {
         Self::new(
-            random_range(0.0, 1.0),
-            random_range(0.0, 1.0),
-            random_range(0.0, 1.0),
+            rng.random_range(0.0, 1.0),
+            rng.random_range(0.0, 1.0),
+            rng.random_range(0.0, 1.0),
         )
     }
-    pub fn rand_in(min: f32, max: f32) -> Self {
+    pub fn rand_in(min: f32, max: f32, rng: &mut Rng) -> Self {
         Self::new(
-            random_range(min, max),
-            random_range(min, max),
-            random_range(min, max),
+            rng.random_range(min, max),
+            rng.random_range(min, max),
+            rng.random_range(min, max),
         )
     }
 
@@ -112,9 +112,9 @@ impl Neg for Vec3 {
     }
 }
 
-pub fn random_unit_vector() -> Vec3 {
+pub fn random_unit_vector(rng: &mut Rng) -> Vec3 {
     loop {
-        let p = Vec3::rand_in(-1.0, 1.0);
+        let p = Vec3::rand_in(-1.0, 1.0, rng);
         let lensq = p.len_squared();
         if 1e-38 < lensq && lensq <= 1.0 {
             return p.normalize();
@@ -122,9 +122,13 @@ pub fn random_unit_vector() -> Vec3 {
     }
 }
 
-pub fn random_in_unit_disk() -> Vec3 {
+pub fn random_in_unit_disk(rng: &mut Rng) -> Vec3 {
     loop {
-        let p = Vec3::new(random_range(-1.0, 1.0), random_range(-1.0, 1.0), 0.0);
+        let p = Vec3::new(
+            rng.random_range(-1.0, 1.0),
+            rng.random_range(-1.0, 1.0),
+            0.0,
+        );
         if p.len_squared() < 1.0 {
             return p;
         }

@@ -13,7 +13,7 @@ pub fn render<F>(
     mut shader: F,
 ) -> bool
 where
-    F: FnMut(usize, usize, usize) -> Color,
+    F: FnMut(usize, usize, usize, &mut Rng) -> Color,
 {
     let w = img.w();
     let h = img.h();
@@ -22,6 +22,7 @@ where
 
     let mut accum = vec![Color::zero(); w * h];
     let mut done = 0usize;
+    let mut rng = Rng::default();
     let start = Instant::now();
     hide_cursor();
 
@@ -40,7 +41,7 @@ where
                 }
 
                 let idx = y * w + x;
-                accum[idx] = accum[idx] + shader(x, y, s);
+                accum[idx] = accum[idx] + shader(x, y, s, &mut rng);
                 done += 1;
 
                 if done % update_every == 0 {
