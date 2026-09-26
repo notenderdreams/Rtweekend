@@ -1,4 +1,5 @@
 mod camera;
+mod gui;
 mod image;
 mod interval;
 mod material;
@@ -10,10 +11,11 @@ mod sphere;
 mod utils;
 mod vec3;
 
-use std::sync::Arc;
+use std::{sync::Arc, thread};
 
 use crate::{
     camera::Camera,
+    gui::Preview,
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
     sphere::Sphere,
@@ -25,14 +27,16 @@ fn main() {
     let mut world = ObjectList::new();
 
     scene_setup(&mut world);
+    let world = Arc::new(world);
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
     let img_w: usize = 1240;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
     let samples_per_pixel: usize = 200;
-    let max_depth: usize = 50;
+    let max_depth: usize = 10;
 
-    let mut cam = Camera::new(aspect_ratio, img_w, samples_per_pixel, max_depth);
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
 
     cam.vfov = 20.0;
     cam.lookfrom = Point::new(13.0, 2.0, 3.0);
@@ -42,11 +46,16 @@ fn main() {
     cam.defocus_angle = 0.0;
     cam.focus_dist = 10.4;
 
-    let img = cam.render(&world);
+    let preview = Arc::new(Preview::new(cam.img_w, cam.img_h));
+    let render_preview = Arc::clone(&preview);
+    let render_world = Arc::clone(&world);
 
-    // utils::clear_screen();
-    // println!("{}", img);
-    std::fs::write("output.ppm", img.to_ppm()).unwrap();
+    let handle = thread::spawn(move || cam.render(render_world.as_ref(), Some(&render_preview)));
+    preview.run("Rtweekend");
+
+    if let Some(img) = handle.join().expect("render thread panicked") {
+        std::fs::write("output.ppm", img.to_ppm()).unwrap();
+    }
 }
 
 fn scene_setup(world: &mut ObjectList) {

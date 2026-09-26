@@ -29,11 +29,13 @@ pub fn clear_screen() {
 }
 
 pub fn hide_cursor() {
-    print!("\x1b[?25l")
+    print!("\x1b[?25l");
+    io::stdout().flush().unwrap();
 }
 
 pub fn show_cursor() {
-    print!("\x1b[?25h")
+    print!("\x1b[?25h");
+    io::stdout().flush().unwrap();
 }
 
 pub fn print_progress(

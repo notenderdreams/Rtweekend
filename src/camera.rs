@@ -1,4 +1,5 @@
 use crate::{
+    gui::Preview,
     image::Image,
     interval::Interval,
     object::{HRecord, Object},
@@ -9,8 +10,8 @@ use crate::{
 };
 
 pub struct Camera {
-    pub aspect_ratio: f32,
     pub img_w: usize,
+    pub img_h: usize,
     pub samples_per_pixel: usize,
     pub max_depth: usize,
 
@@ -22,7 +23,6 @@ pub struct Camera {
     pub defocus_angle: f32,
     pub focus_dist: f32,
 
-    img_h: usize,
     center: Point,
     px_del_u: Vec3,
     px_del_v: Vec3,
@@ -37,14 +37,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(
-        aspect_ratio: f32,
-        img_w: usize,
-        samples_per_pixel: usize,
-        max_depth: usize,
-    ) -> Self {
-        let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-
+    pub fn new(img_w: usize, img_h: usize, samples_per_pixel: usize, max_depth: usize) -> Self {
         let vfov = 90.0;
         let lookfrom = Point::zero();
         let lookat = Point::new(0.0, 0.0, -1.0);
@@ -65,8 +58,8 @@ impl Camera {
             );
 
         Self {
-            aspect_ratio,
             img_w,
+            img_h,
             samples_per_pixel,
             max_depth,
             vfov,
@@ -75,7 +68,6 @@ impl Camera {
             vup,
             defocus_angle,
             focus_dist,
-            img_h,
             center,
             px_del_u,
             px_del_v,
@@ -86,6 +78,10 @@ impl Camera {
             defocus_disk_u,
             defocus_disk_v,
         }
+    }
+
+    pub fn aspect_ratio(&self) -> f32 {
+        self.img_w as f32 / self.img_h as f32
     }
 
     pub fn init(&mut self) {
@@ -157,16 +153,16 @@ impl Camera {
         )
     }
 
-    pub fn render(&mut self, world: &dyn Object) -> Image {
+    pub fn render(&mut self, world: &dyn Object, preview: Option<&Preview>) -> Option<Image> {
         self.init();
         let mut img = Image::new(self.img_w, self.img_h);
 
-        renderer::render(&mut img, self.samples_per_pixel, |x, y, _s| {
+        let completed = renderer::render(&mut img, self.samples_per_pixel, preview, |x, y, _s| {
             let r = self.get_ray(x, y);
             self.ray_color(&r, world, self.max_depth)
         });
 
-        img
+        if completed { Some(img) } else { None }
     }
 
     fn get_ray(&self, x: usize, y: usize) -> Ray {

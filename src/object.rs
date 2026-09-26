@@ -36,6 +36,6 @@ impl HRecord {
     }
 }
 
-pub trait Object {
+pub trait Object: Send + Sync {
     fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool;
 }
