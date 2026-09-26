@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use crate::{
     gui::Preview,
     image::Image,
@@ -6,7 +8,7 @@ use crate::{
     ray::Ray,
     renderer,
     utils::random,
-    vec3::{Color, Point, Vec3, random_in_unit_disk},
+    vec3::{random_in_unit_disk, Color, Point, Vec3},
 };
 
 pub struct Camera {
@@ -153,16 +155,45 @@ impl Camera {
         )
     }
 
-    pub fn render(&mut self, world: &dyn Object, preview: Option<&Preview>) -> Option<Image> {
-        self.init();
-        let mut img = Image::new(self.img_w, self.img_h);
+    pub fn render_loop(&mut self, world: &dyn Object, preview: Option<&Preview>) -> Option<Image> {
+        let mut last_img: Option<Image> = None;
 
-        let completed = renderer::render(&mut img, self.samples_per_pixel, preview, |x, y, _s| {
-            let r = self.get_ray(x, y);
-            self.ray_color(&r, world, self.max_depth)
-        });
+        loop {
+            if preview.map_or(false, |p| p.abort.load(Ordering::Relaxed)) {
+                return last_img;
+            }
 
-        if completed { Some(img) } else { None }
+            if let Some(p) = preview {
+                p.restart.store(false, Ordering::Relaxed);
+            }
+
+            self.init();
+            let mut img = Image::new(self.img_w, self.img_h);
+
+            let is_clay = preview.map_or(false, |p| p.clay.load(Ordering::Relaxed));
+            let samples = if is_clay { 1 } else { self.samples_per_pixel };
+
+            let completed = renderer::render(&mut img, samples, preview, |x, y, _s| {
+                let r = self.get_ray(x, y);
+                if is_clay {
+                    self.clay_color(&r, world)
+                } else {
+                    self.ray_color(&r, world, self.max_depth)
+                }
+            });
+
+            if completed {
+                last_img = Some(img);
+            }
+
+            let Some(p) = preview else {
+                return last_img;
+            };
+
+            while !p.restart.load(Ordering::Relaxed) && !p.abort.load(Ordering::Relaxed) {
+                std::thread::sleep(std::time::Duration::from_millis(16));
+            }
+        }
     }
 
     fn get_ray(&self, x: usize, y: usize) -> Ray {
@@ -200,6 +231,22 @@ impl Camera {
                 }
             }
             return Color::zero();
+        }
+
+        let unit_dir = r.direction.normalize();
+        let a = 0.5 * (unit_dir.y + 1.0);
+        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
+    }
+    fn clay_color(&self, r: &Ray, world: &dyn Object) -> Color {
+        let mut rec = HRecord::new();
+
+        if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
+            let light_dir = Vec3::new(0.5, 0.8, 0.3).normalize();
+            let ndotl = rec.normal.dot(light_dir).max(0.0);
+
+            let base = Color::new(0.7, 0.7, 0.72);
+            let ambient = 0.15;
+            return base * (ambient + (1.0 - ambient) * ndotl);
         }
 
         let unit_dir = r.direction.normalize();

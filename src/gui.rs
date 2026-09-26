@@ -3,12 +3,13 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Key, KeyRepeat, Window, WindowOptions};
 
 pub struct Preview {
     pub buffer: Arc<[AtomicU32]>,
-    pub done: Arc<AtomicBool>,
     pub abort: Arc<AtomicBool>,
+    pub restart: Arc<AtomicBool>,
+    pub clay: Arc<AtomicBool>,
     w: usize,
     h: usize,
 }
@@ -18,8 +19,9 @@ impl Preview {
         let buffer: Vec<AtomicU32> = (0..w * h).map(|_| AtomicU32::new(0)).collect();
         Self {
             buffer: Arc::from(buffer.into_boxed_slice()),
-            done: Arc::new(AtomicBool::new(false)),
             abort: Arc::new(AtomicBool::new(false)),
+            restart: Arc::new(AtomicBool::new(false)),
+            clay: Arc::new(AtomicBool::new(false)),
             w,
             h,
         }
@@ -37,15 +39,20 @@ impl Preview {
         win.set_target_fps(30);
 
         let mut local = vec![0u32; self.w * self.h];
+
         while win.is_open() && !win.is_key_down(Key::Escape) {
+            if win.is_key_pressed(Key::Tab, KeyRepeat::No) {
+                let next_clay = !self.clay.load(Ordering::Relaxed);
+                self.clay.store(next_clay, Ordering::Relaxed);
+                self.restart.store(true, Ordering::Relaxed);
+            }
+
             for (dst, src) in local.iter_mut().zip(self.buffer.iter()) {
                 *dst = src.load(Ordering::Relaxed);
             }
             win.update_with_buffer(&local, self.w, self.h).unwrap();
         }
 
-        if !self.done.load(Ordering::Relaxed) {
-            self.abort.store(true, Ordering::Relaxed);
-        }
+        self.abort.store(true, Ordering::Relaxed);
     }
 }

@@ -26,14 +26,15 @@ where
     let start = Instant::now();
     hide_cursor();
 
-    let mut aborted = false;
+    let mut completed = true;
+
     'outer: for y in 0..h {
         for x in 0..w {
             let mut color = Color::zero();
             for s in 0..samples_per_pixel {
                 if let Some(p) = preview {
-                    if p.abort.load(Ordering::Relaxed) {
-                        aborted = true;
+                    if p.abort.load(Ordering::Relaxed) || p.restart.load(Ordering::Relaxed) {
+                        completed = false;
                         break 'outer;
                     }
                 }
@@ -51,24 +52,20 @@ where
         }
     }
 
-    print_progress(
-        done,
-        total_samples,
-        w - 1,
-        h - 1,
-        samples_per_pixel,
-        samples_per_pixel,
-        start,
-    );
-    if aborted {
-        println!("\nAborted after {:.2}s", start.elapsed().as_secs_f32());
-    } else {
-        println!("\nDone in {:.2}s", start.elapsed().as_secs_f32());
-    }
     show_cursor();
 
-    if let Some(p) = preview {
-        p.done.store(true, Ordering::Relaxed);
+    if completed {
+        print_progress(
+            done,
+            total_samples,
+            w.saturating_sub(1),
+            h.saturating_sub(1),
+            samples_per_pixel,
+            samples_per_pixel,
+            start,
+        );
+        println!("\nDone in {:.2}s", start.elapsed().as_secs_f32());
     }
-    !aborted
+
+    completed
 }

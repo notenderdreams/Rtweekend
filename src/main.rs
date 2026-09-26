@@ -31,9 +31,9 @@ fn main() {
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
-    let img_w: usize = 1240;
+    let img_w: usize = 640;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-    let samples_per_pixel: usize = 200;
+    let samples_per_pixel: usize = 100;
     let max_depth: usize = 10;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
@@ -50,7 +50,8 @@ fn main() {
     let render_preview = Arc::clone(&preview);
     let render_world = Arc::clone(&world);
 
-    let handle = thread::spawn(move || cam.render(render_world.as_ref(), Some(&render_preview)));
+    let handle =
+        thread::spawn(move || cam.render_loop(render_world.as_ref(), Some(&render_preview)));
     preview.run("Rtweekend");
 
     if let Some(img) = handle.join().expect("render thread panicked") {
