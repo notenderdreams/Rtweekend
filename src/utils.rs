@@ -97,11 +97,7 @@ pub fn print_progress(
 }
 
 pub fn linear_to_gamma(linear: f32) -> f32 {
-    if linear > 0.0 {
-        linear.sqrt()
-    } else {
-        0.0
-    }
+    if linear > 0.0 { linear.sqrt() } else { 0.0 }
 }
 
 pub fn to_u8(c: Color) -> (u8, u8, u8) {
@@ -110,9 +106,5 @@ pub fn to_u8(c: Color) -> (u8, u8, u8) {
     let r = linear_to_gamma(intensity.clamp(c.x));
     let g = linear_to_gamma(intensity.clamp(c.y));
     let b = linear_to_gamma(intensity.clamp(c.z));
-    (
-        (256.0 * r) as u8,
-        (256.0 * g) as u8,
-        (256.0 * b) as u8,
-    )
+    ((256.0 * r) as u8, (256.0 * g) as u8, (256.0 * b) as u8)
 }

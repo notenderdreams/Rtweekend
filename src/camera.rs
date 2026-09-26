@@ -5,7 +5,7 @@ use crate::{
     ray::Ray,
     renderer,
     utils::random,
-    vec3::{Color, Point, Vec3, random_unit_vector},
+    vec3::{Color, Point, Vec3, random_in_unit_disk},
 };
 
 pub struct Camera {
@@ -19,6 +19,9 @@ pub struct Camera {
     pub lookat: Point,
     pub vup: Vec3,
 
+    pub defocus_angle: f32,
+    pub focus_dist: f32,
+
     img_h: usize,
     center: Point,
     px_del_u: Vec3,
@@ -28,6 +31,9 @@ pub struct Camera {
     u: Vec3,
     v: Vec3,
     w: Vec3,
+
+    defocus_disk_u: Vec3,
+    defocus_disk_v: Vec3,
 }
 
 impl Camera {
@@ -43,9 +49,20 @@ impl Camera {
         let lookfrom = Point::zero();
         let lookat = Point::new(0.0, 0.0, -1.0);
         let vup = Vec3::new(0.0, 1.0, 0.0);
+        let defocus_angle = 0.0;
+        let focus_dist = 10.0;
 
-        let (center, px_del_u, px_del_v, px00_loc, u, v, w) =
-            Self::compute(img_w, img_h, vfov, lookfrom, lookat, vup);
+        let (center, px_del_u, px_del_v, px00_loc, u, v, w, defocus_disk_u, defocus_disk_v) =
+            Self::compute(
+                img_w,
+                img_h,
+                vfov,
+                lookfrom,
+                lookat,
+                vup,
+                defocus_angle,
+                focus_dist,
+            );
 
         Self {
             aspect_ratio,
@@ -56,6 +73,8 @@ impl Camera {
             lookfrom,
             lookat,
             vup,
+            defocus_angle,
+            focus_dist,
             img_h,
             center,
             px_del_u,
@@ -64,18 +83,23 @@ impl Camera {
             u,
             v,
             w,
+            defocus_disk_u,
+            defocus_disk_v,
         }
     }
 
     pub fn init(&mut self) {
-        let (center, px_del_u, px_del_v, px00_loc, u, v, w) = Self::compute(
-            self.img_w,
-            self.img_h,
-            self.vfov,
-            self.lookfrom,
-            self.lookat,
-            self.vup,
-        );
+        let (center, px_del_u, px_del_v, px00_loc, u, v, w, defocus_disk_u, defocus_disk_v) =
+            Self::compute(
+                self.img_w,
+                self.img_h,
+                self.vfov,
+                self.lookfrom,
+                self.lookat,
+                self.vup,
+                self.defocus_angle,
+                self.focus_dist,
+            );
         self.center = center;
         self.px_del_u = px_del_u;
         self.px_del_v = px_del_v;
@@ -83,6 +107,8 @@ impl Camera {
         self.u = u;
         self.v = v;
         self.w = w;
+        self.defocus_disk_u = defocus_disk_u;
+        self.defocus_disk_v = defocus_disk_v;
     }
 
     fn compute(
@@ -92,12 +118,13 @@ impl Camera {
         lookfrom: Point,
         lookat: Point,
         vup: Vec3,
-    ) -> (Point, Vec3, Vec3, Point, Vec3, Vec3, Vec3) {
+        defocus_angle: f32,
+        focus_dist: f32,
+    ) -> (Point, Vec3, Vec3, Point, Vec3, Vec3, Vec3, Vec3, Vec3) {
         let center = lookfrom;
-        let focal_len = (lookfrom - lookat).len();
         let theta = vfov.to_radians();
         let h = (theta / 2.0).tan();
-        let vp_h = 2.0 * h * focal_len;
+        let vp_h = 2.0 * h * focus_dist;
         let vp_w = vp_h * (img_w as f32 / img_h as f32);
 
         let w = (lookfrom - lookat).normalize();
@@ -110,10 +137,24 @@ impl Camera {
         let px_del_u = vp_u / img_w as f32;
         let px_del_v = vp_v / img_h as f32;
 
-        let vp_upper_left = center - (w * focal_len) - vp_u / 2.0 - vp_v / 2.0;
+        let vp_upper_left = center - (w * focus_dist) - vp_u / 2.0 - vp_v / 2.0;
         let px00_loc = vp_upper_left + (px_del_u + px_del_v) * 0.5;
 
-        (center, px_del_u, px_del_v, px00_loc, u, v, w)
+        let defocus_radius = focus_dist * (defocus_angle / 2.0).to_radians().tan();
+        let defocus_disk_u = u * defocus_radius;
+        let defocus_disk_v = v * defocus_radius;
+
+        (
+            center,
+            px_del_u,
+            px_del_v,
+            px00_loc,
+            u,
+            v,
+            w,
+            defocus_disk_u,
+            defocus_disk_v,
+        )
     }
 
     pub fn render(&mut self, world: &dyn Object) -> Image {
@@ -133,8 +174,20 @@ impl Camera {
         let px_sample = self.px00_loc
             + self.px_del_u * (x as f32 + offset.x)
             + self.px_del_v * (y as f32 + offset.y);
-        let ray_dir = px_sample - self.center;
-        Ray::new(self.center, ray_dir)
+
+        let ray_origin = if self.defocus_angle <= 0.0 {
+            self.center
+        } else {
+            self.defocus_disk_sample()
+        };
+
+        let ray_dir = px_sample - ray_origin;
+        Ray::new(ray_origin, ray_dir)
+    }
+
+    fn defocus_disk_sample(&self) -> Point {
+        let p = random_in_unit_disk();
+        self.center + (self.defocus_disk_u * p.x) + (self.defocus_disk_v * p.y)
     }
 
     fn ray_color(&self, r: &Ray, world: &dyn Object, depth: usize) -> Color {

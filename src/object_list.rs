@@ -2,7 +2,6 @@ use crate::{
     interval::Interval,
     object::{HRecord, Object},
     ray::Ray,
-    vec3::{Point, Vec3},
 };
 
 pub struct ObjectList {
@@ -12,9 +11,6 @@ pub struct ObjectList {
 impl ObjectList {
     pub fn new() -> Self {
         Self { objects: vec![] }
-    }
-    pub fn clear(&mut self) {
-        self.objects.clear();
     }
 
     pub fn add(&mut self, obj: Box<dyn Object>) {
@@ -29,7 +25,7 @@ impl Object for ObjectList {
 
         for obj in &self.objects {
             let mut tmp_rec = HRecord::new();
-            
+
             if obj.hit(r, Interval::new(ray_t.min, closest_so_far), &mut tmp_rec) {
                 hit_anything = true;
                 closest_so_far = tmp_rec.t;

@@ -8,14 +8,6 @@ impl Interval {
         Self { min, max }
     }
 
-    pub fn size(&self) -> f32 {
-        self.max - self.min
-    }
-
-    pub fn contains(&self, x: f32) -> bool {
-        self.min <= x && x <= self.max
-    }
-
     pub fn surrounds(&self, x: f32) -> bool {
         self.min < x && x < self.max
     }
@@ -35,18 +27,18 @@ impl Interval {
         max: f32::NEG_INFINITY,
     };
 
-    pub const UNIVERSE: Self = Self {
-        min: f32::NEG_INFINITY,
-        max: f32::INFINITY,
-    };
+    // pub const UNIVERSE: Self = Self {
+    //     min: f32::NEG_INFINITY,
+    //     max: f32::INFINITY,
+    // };
 
-    pub fn empty() -> Self {
-        Self::EMPTY
-    }
+    // pub fn empty() -> Self {
+    //     Self::EMPTY
+    // }
 
-    pub fn universe() -> Self {
-        Self::UNIVERSE
-    }
+    // pub fn universe() -> Self {
+    //     Self::UNIVERSE
+    // }
 }
 
 impl Default for Interval {

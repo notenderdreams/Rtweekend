@@ -20,7 +20,7 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)> {
+    fn scatter(&self, _ray: &Ray, hit: &HRecord) -> Option<(Color, Ray)> {
         let mut direction = hit.normal + random_unit_vector();
         if direction.near_zero() {
             direction = hit.normal;
@@ -62,8 +62,8 @@ impl Dielectric {
     }
 
     pub fn reflectance(cos: f32, refraction_index: f32) -> f32 {
-        let r0 = (1.0 - refraction_index) / (1.0 + refraction_index).powi(2);
-        r0 + (1.0 - r0) * (1.0 - r0) * cos.powi(5)
+        let r0 = ((1.0 - refraction_index) / (1.0 + refraction_index)).powi(2);
+        r0 + (1.0 - r0) * (1.0 - cos).powi(5)
     }
 }
 
