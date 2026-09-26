@@ -17,7 +17,7 @@ use crate::{
     material::{Dielectric, Lambertian, Metal},
     object_list::ObjectList,
     sphere::Sphere,
-    vec3::{Color, Point},
+    vec3::{Color, Point, Vec3},
 };
 
 fn main() {
@@ -27,11 +27,16 @@ fn main() {
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
-    let img_w: usize = 400;
+    let img_w: usize = 1240;
     let samples_per_pixel: usize = 100;
     let max_depth: usize = 50;
 
     let mut cam = Camera::new(aspect_ratio, img_w, samples_per_pixel, max_depth);
+    cam.vfov = 20.0;
+    cam.lookfrom = Point::new(-2.0, 2.0, 1.0);
+    cam.lookat = Point::new(0.0, 0.0, -1.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
     let img = cam.render(&world);
 
     // utils::clear_screen();
