@@ -1,6 +1,7 @@
 use crate::{
     object::HRecord,
     ray::Ray,
+    utils::random,
     vec3::{Color, random_unit_vector, reflect, refract},
 };
 
@@ -59,6 +60,11 @@ impl Dielectric {
     pub fn new(refraction_index: f32) -> Self {
         Self { refraction_index }
     }
+
+    pub fn reflectance(cos: f32, refraction_index: f32) -> f32 {
+        let r0 = (1.0 - refraction_index) / (1.0 + refraction_index).powi(2);
+        r0 + (1.0 - r0) * (1.0 - r0) * cos.powi(5)
+    }
 }
 
 impl Material for Dielectric {
@@ -76,9 +82,9 @@ impl Material for Dielectric {
         let cos_theta = (-unit_direction).dot(hit.normal).min(1.0);
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
-        let cant_reflect = ri * sin_theta > 1.0;
+        let cant_refract = ri * sin_theta > 1.0;
 
-        let direction = if cant_reflect {
+        let direction = if cant_refract || Self::reflectance(cos_theta, ri) > random() {
             reflect(unit_direction, hit.normal)
         } else {
             refract(unit_direction, hit.normal, ri)

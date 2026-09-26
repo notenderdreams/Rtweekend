@@ -23,6 +23,23 @@ use crate::{
 fn main() {
     let mut world = ObjectList::new();
 
+    scene_setup(&mut world);
+
+    // Camera
+    let aspect_ratio = 16.0 / 9.0;
+    let img_w: usize = 400;
+    let samples_per_pixel: usize = 100;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(aspect_ratio, img_w, samples_per_pixel, max_depth);
+    let img = cam.render(&world);
+
+    // utils::clear_screen();
+    // println!("{}", img);
+    std::fs::write("output.ppm", img.to_ppm()).unwrap();
+}
+
+fn scene_setup(world: &mut ObjectList) {
     // Materials
     let material_ground = Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
     let material_center = Arc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));
@@ -43,7 +60,7 @@ fn main() {
         material_center,
     )));
 
-    // Left metal sphere
+    // Left dielectric sphere
     world.add(Box::new(Sphere::new(
         Point::new(-1.0, 0.0, -1.0),
         0.5,
@@ -56,17 +73,4 @@ fn main() {
         0.5,
         material_right,
     )));
-
-    // Camera
-    let aspect_ratio = 16.0 / 9.0;
-    let img_w: usize = 400;
-    let samples_per_pixel: usize = 100;
-    let max_depth: usize = 50;
-
-    let mut cam = Camera::new(aspect_ratio, img_w, samples_per_pixel, max_depth);
-    let img = cam.render(&world);
-
-    // utils::clear_screen();
-    // println!("{}", img);
-    std::fs::write("output.ppm", img.to_ppm()).unwrap();
 }
