@@ -18,36 +18,40 @@ where
     let w = img.w();
     let h = img.h();
     let total_samples = w * h * samples_per_pixel;
-    let inv_samples = 1.0 / samples_per_pixel as f32;
-
     let update_every = (total_samples / 500).max(1);
 
+    let mut accum = vec![Color::zero(); w * h];
     let mut done = 0usize;
     let start = Instant::now();
     hide_cursor();
 
     let mut completed = true;
 
-    'outer: for y in 0..h {
-        for x in 0..w {
-            let mut color = Color::zero();
-            for s in 0..samples_per_pixel {
+    'outer: for s in 1..=samples_per_pixel {
+        let inv_s = 1.0 / s as f32;
+
+        for y in 0..h {
+            for x in 0..w {
                 if let Some(p) = preview {
                     if p.abort.load(Ordering::Relaxed) || p.restart.load(Ordering::Relaxed) {
                         completed = false;
                         break 'outer;
                     }
                 }
-                color = color + shader(x, y, s);
+
+                let idx = y * w + x;
+                accum[idx] = accum[idx] + shader(x, y, s);
                 done += 1;
+
                 if done % update_every == 0 {
-                    print_progress(done, total_samples, x, y, s + 1, samples_per_pixel, start);
+                    print_progress(done, total_samples, x, y, s, samples_per_pixel, start);
                 }
-            }
-            let (r, g, b) = to_u8(color * inv_samples);
-            img.set_px(x, y, r, g, b);
-            if let Some(p) = preview {
-                p.set_pixel(x, y, r, g, b);
+
+                let (r, g, b) = to_u8(accum[idx] * inv_s);
+                img.set_px(x, y, r, g, b);
+                if let Some(p) = preview {
+                    p.set_pixel(x, y, r, g, b);
+                }
             }
         }
     }

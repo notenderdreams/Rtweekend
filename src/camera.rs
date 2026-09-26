@@ -173,7 +173,7 @@ impl Camera {
             let is_clay = preview.map_or(false, |p| p.clay.load(Ordering::Relaxed));
             let samples = if is_clay { 1 } else { self.samples_per_pixel };
 
-            let completed = renderer::render(&mut img, samples, preview, |x, y, _s| {
+            renderer::render(&mut img, samples, preview, |x, y, _s| {
                 let r = self.get_ray(x, y);
                 if is_clay {
                     self.clay_color(&r, world)
@@ -182,9 +182,7 @@ impl Camera {
                 }
             });
 
-            if completed {
-                last_img = Some(img);
-            }
+            last_img = Some(img);
 
             let Some(p) = preview else {
                 return last_img;
