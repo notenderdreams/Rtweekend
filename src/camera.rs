@@ -8,7 +8,7 @@ use crate::{
     ray::Ray,
     renderer,
     utils::Rng,
-    vec3::{random_in_unit_disk, Color, Point, Vec3},
+    vec3::{Color, Point, Vec3, random_in_unit_disk},
 };
 
 pub struct Camera {
@@ -82,6 +82,7 @@ impl Camera {
         }
     }
 
+    #[allow(dead_code)]
     pub fn aspect_ratio(&self) -> f32 {
         self.img_w as f32 / self.img_h as f32
     }
@@ -109,6 +110,7 @@ impl Camera {
         self.defocus_disk_v = defocus_disk_v;
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn compute(
         img_w: usize,
         img_h: usize,
@@ -159,7 +161,7 @@ impl Camera {
         let mut last_img: Option<Image> = None;
 
         loop {
-            if preview.map_or(false, |p| p.abort.load(Ordering::Relaxed)) {
+            if preview.is_some_and(|p| p.abort.load(Ordering::Relaxed)) {
                 return last_img;
             }
 
@@ -170,7 +172,7 @@ impl Camera {
             self.init();
             let mut img = Image::new(self.img_w, self.img_h);
 
-            let is_clay = preview.map_or(false, |p| p.clay.load(Ordering::Relaxed));
+            let is_clay = preview.is_some_and(|p| p.clay.load(Ordering::Relaxed));
             let samples = if is_clay { 1 } else { self.samples_per_pixel };
 
             renderer::render(&mut img, samples, preview, |x, y, _s, rng| {
@@ -223,10 +225,10 @@ impl Camera {
         let mut rec = HRecord::new();
 
         if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
-            if let Some(mat) = &rec.mat {
-                if let Some((attenuation, scattered)) = mat.scatter(r, &rec, rng) {
-                    return attenuation * self.ray_color(&scattered, world, depth - 1, rng);
-                }
+            if let Some(mat) = &rec.mat
+                && let Some((attenuation, scattered)) = mat.scatter(r, &rec, rng)
+            {
+                return attenuation * self.ray_color(&scattered, world, depth - 1, rng);
             }
             return Color::zero();
         }

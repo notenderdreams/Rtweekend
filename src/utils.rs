@@ -59,6 +59,7 @@ impl Default for Rng {
     }
 }
 
+#[allow(dead_code)]
 pub fn clear_screen() {
     print!("\x1b[2J");
     print!("\x1b[H");
@@ -84,20 +85,20 @@ pub fn print_progress(
     samples: usize,
     start: Instant,
 ) {
-    let percent = done * 100 / total.max(1);
+    let percent = (done * 100 / total.max(1)).min(100);
     let elapsed = start.elapsed().as_secs_f32();
     let eta = if done > 0 {
-        (total - done) as f32 * elapsed / done as f32
+        total.saturating_sub(done) as f32 * elapsed / done as f32
     } else {
         0.0
     };
 
     let bar_w = 30;
-    let filled = done * bar_w / total.max(1);
+    let filled = (done * bar_w / total.max(1)).min(bar_w);
     let bar = if filled >= bar_w {
         "=".repeat(bar_w)
     } else {
-        "=".repeat(filled) + ">" + &" ".repeat(bar_w - filled - 1)
+        "=".repeat(filled) + ">" + &" ".repeat(bar_w.saturating_sub(filled + 1))
     };
 
     let elapsed_s = start.elapsed().as_secs();

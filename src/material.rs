@@ -2,7 +2,7 @@ use crate::{
     object::HRecord,
     ray::Ray,
     utils::Rng,
-    vec3::{random_unit_vector, reflect, refract, Color},
+    vec3::{Color, random_unit_vector, reflect, refract},
 };
 
 pub trait Material: Send + Sync {

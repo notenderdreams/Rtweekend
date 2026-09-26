@@ -32,9 +32,9 @@ fn main() {
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
-    let img_w: usize = 640;
+    let img_w: usize = 1240;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-    let samples_per_pixel: usize = 100;
+    let samples_per_pixel: usize =100;
     let max_depth: usize = 10;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
@@ -73,14 +73,19 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
     for a in -11..11 {
         for b in -11..11 {
             let choose_mat = rng.random();
-            let center = Point::new(a as f32 + 0.9 * rng.random(), 0.2, b as f32 + 0.9 * rng.random());
+            let center = Point::new(
+                a as f32 + 0.9 * rng.random(),
+                0.2,
+                b as f32 + 0.9 * rng.random(),
+            );
 
             if (center - Point::new(4.0, 0.2, 0.0)).len() > 0.9 {
                 let mat: Arc<dyn Material> = match choose_mat {
                     x if x < 0.8 => Arc::new(Lambertian::new(Color::rand(rng) * Color::rand(rng))),
-                    x if x < 0.95 => {
-                        Arc::new(Metal::new(Color::rand_in(0.5, 1.0, rng), rng.random_range(0.0, 0.5)))
-                    }
+                    x if x < 0.95 => Arc::new(Metal::new(
+                        Color::rand_in(0.5, 1.0, rng),
+                        rng.random_range(0.0, 0.5),
+                    )),
                     _ => Arc::new(Dielectric::new(1.5)),
                 };
                 world.add(Box::new(Sphere::new(center, 0.2, mat)));
