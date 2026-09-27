@@ -1,4 +1,5 @@
 mod camera;
+mod controller;
 mod gui;
 mod image;
 mod interval;
@@ -11,10 +12,14 @@ mod sphere;
 mod utils;
 mod vec3;
 
-use std::{sync::Arc, thread};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
 use crate::{
     camera::Camera,
+    controller::CameraController,
     gui::Preview,
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
@@ -34,7 +39,7 @@ fn main() {
     let aspect_ratio = 16.0 / 9.0;
     let img_w: usize = 1240;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-    let samples_per_pixel: usize =100;
+    let samples_per_pixel: usize = 100;
     let max_depth: usize = 10;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
@@ -43,11 +48,17 @@ fn main() {
     cam.lookfrom = Point::new(13.0, 2.0, 3.0);
     cam.lookat = Point::new(0.0, 0.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
-
     cam.defocus_angle = 0.0;
     cam.focus_dist = 10.4;
 
-    let preview = Arc::new(Preview::new(cam.img_w, cam.img_h));
+    let controller = Arc::new(Mutex::new(CameraController::new(
+        cam.lookfrom,
+        cam.lookat,
+        cam.vup,
+        cam.vfov,
+    )));
+
+    let preview = Arc::new(Preview::new(cam.img_w, cam.img_h, Arc::clone(&controller)));
     let render_preview = Arc::clone(&preview);
     let render_world = Arc::clone(&world);
 

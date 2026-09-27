@@ -1,27 +1,31 @@
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
 use minifb::{Key, KeyRepeat, Window, WindowOptions};
+
+use crate::controller::CameraController;
 
 pub struct Preview {
     pub buffer: Arc<[AtomicU32]>,
     pub abort: Arc<AtomicBool>,
     pub restart: Arc<AtomicBool>,
     pub clay: Arc<AtomicBool>,
+    pub controller: Arc<Mutex<CameraController>>,
     w: usize,
     h: usize,
 }
 
 impl Preview {
-    pub fn new(w: usize, h: usize) -> Self {
+    pub fn new(w: usize, h: usize, controller: Arc<Mutex<CameraController>>) -> Self {
         let buffer: Vec<AtomicU32> = (0..w * h).map(|_| AtomicU32::new(0)).collect();
         Self {
             buffer: Arc::from(buffer.into_boxed_slice()),
             abort: Arc::new(AtomicBool::new(false)),
             restart: Arc::new(AtomicBool::new(false)),
             clay: Arc::new(AtomicBool::new(false)),
+            controller,
             w,
             h,
         }
@@ -45,6 +49,11 @@ impl Preview {
                 let next_clay = !self.clay.load(Ordering::Relaxed);
                 self.clay.store(next_clay, Ordering::Relaxed);
                 self.restart.store(true, Ordering::Relaxed);
+            }
+
+            if self.controller.lock().unwrap().update(&win) {
+                self.restart.store(true, Ordering::Relaxed);
+                win.set_title(&self.controller.lock().unwrap().status());
             }
 
             for (dst, src) in local.iter_mut().zip(self.buffer.iter()) {

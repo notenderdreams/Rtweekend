@@ -167,6 +167,11 @@ impl Camera {
 
             if let Some(p) = preview {
                 p.restart.store(false, Ordering::Relaxed);
+                let state = p.controller.lock().unwrap().current;
+                self.lookfrom = state.lookfrom;
+                self.lookat = state.lookat;
+                self.vup = state.vup;
+                self.vfov = state.vfov;
             }
 
             self.init();
