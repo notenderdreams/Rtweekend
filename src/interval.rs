@@ -12,6 +12,11 @@ impl Interval {
         self.min < x && x < self.max
     }
 
+    #[allow(dead_code)]
+    pub fn contains(&self, x: f32) -> bool {
+        self.min <= x && x <= self.max
+    }
+
     pub fn clamp(&self, x: f32) -> f32 {
         if x < self.min {
             self.min
