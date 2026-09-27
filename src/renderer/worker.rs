@@ -15,7 +15,8 @@ use crate::{
 pub fn render_tile<F>(
     tile: Tile,
     w: usize,
-    s: usize,
+    s_start: usize,
+    s_end: usize,
     spp: usize,
     rng: &mut Rng,
     shader: &F,
@@ -29,27 +30,29 @@ pub fn render_tile<F>(
 ) where
     F: Fn(usize, usize, usize, &mut Rng) -> Color + Sync,
 {
-    let inv_s = 1.0 / s as f32;
+    for s in s_start..=s_end {
+        let inv_s = 1.0 / s as f32;
 
-    for y in tile.y0..tile.y1 {
-        for x in tile.x0..tile.x1 {
-            if cancelled.load(Ordering::Relaxed) {
-                return;
-            }
+        for y in tile.y0..tile.y1 {
+            for x in tile.x0..tile.x1 {
+                if cancelled.load(Ordering::Relaxed) {
+                    return;
+                }
 
-            let idx = y * w + x;
-            let px_color = shader(x, y, s, rng);
+                let idx = y * w + x;
+                let px_color = shader(x, y, s, rng);
 
-            let total_accum = unsafe { accum_buf.add_sample(idx, px_color) };
+                let total_accum = unsafe { accum_buf.add_sample(idx, px_color) };
 
-            let (r, g, b) = to_u8(total_accum * inv_s);
-            if let Some(p) = preview {
-                p.set_pixel(x, y, r, g, b);
-            }
+                let (r, g, b) = to_u8(total_accum * inv_s);
+                if let Some(p) = preview {
+                    p.set_pixel(x, y, r, g, b);
+                }
 
-            let d = done.fetch_add(1, Ordering::Relaxed) + 1;
-            if d.is_multiple_of(update_every) {
-                print_progress(d, total_samples, x, y, s, spp, start);
+                let d = done.fetch_add(1, Ordering::Relaxed) + 1;
+                if d.is_multiple_of(update_every) {
+                    print_progress(d, total_samples, x, y, s, spp, start);
+                }
             }
         }
     }
