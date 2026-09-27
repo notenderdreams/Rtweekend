@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
-    interval::Interval, material::Material, object::{HRecord, Object}, object_list::ObjectList, ray::Ray, vec3::{Point, Vec3}
+    interval::Interval,
+    material::Material,
+    object::{HRecord, Object},
+    object_list::ObjectList,
+    ray::Ray,
+    vec3::{Point, Vec3},
 };
 
 #[allow(dead_code)]

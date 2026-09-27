@@ -41,7 +41,7 @@ fn main() {
     let aspect_ratio = 16.0 / 9.0;
     let img_w: usize = 960;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-    let samples_per_pixel: usize = 100;
+    let samples_per_pixel: usize = 50;
     let max_depth: usize = 12;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);

@@ -28,8 +28,6 @@ where
 {
     let w = img.w();
     let h = img.h();
-    let total_samples = w * h * samples_per_pixel;
-    let update_every = (total_samples / 500).max(1);
 
     let tiles = Tile::generate(w, h, TILE_SIZE, true);
 
@@ -40,26 +38,28 @@ where
         .map(|n| n.get())
         .unwrap_or(1);
 
-    let done = AtomicUsize::new(0);
+    let tiles_done = AtomicUsize::new(0);
     let cancelled = AtomicBool::new(false);
     let start = Instant::now();
 
     hide_cursor();
 
     // Stage 1: Full-scene initial draft (1 sample across all tiles)
+    let stage1_progress = if samples_per_pixel == 1 {
+        Some((&tiles_done, tiles.len()))
+    } else {
+        None
+    };
     dispatch_tiles(
         &tiles,
         w,
         1,
         1,
-        samples_per_pixel,
         thread_count,
         &shader,
         &accum_buf,
         preview,
-        &done,
-        total_samples,
-        update_every,
+        stage1_progress,
         start,
         &cancelled,
     );
@@ -71,14 +71,11 @@ where
             w,
             2,
             samples_per_pixel,
-            samples_per_pixel,
             thread_count,
             &shader,
             &accum_buf,
             preview,
-            &done,
-            total_samples,
-            update_every,
+            Some((&tiles_done, tiles.len())),
             start,
             &cancelled,
         );
@@ -99,17 +96,8 @@ where
     }
 
     if completed {
-        let d = done.load(Ordering::Relaxed);
-        print_progress(
-            d,
-            total_samples,
-            w.saturating_sub(1),
-            h.saturating_sub(1),
-            samples_per_pixel,
-            samples_per_pixel,
-            start,
-        );
-        println!("\nDone in {:.2}s", start.elapsed().as_secs_f32());
+        let msg = format!("Done in {:.2}s", start.elapsed().as_secs_f32());
+        println!("\r{}{}", msg, " ".repeat(85usize.saturating_sub(msg.len())));
     }
 
     completed
@@ -121,14 +109,11 @@ fn dispatch_tiles<F>(
     w: usize,
     s_start: usize,
     s_end: usize,
-    spp: usize,
     thread_count: usize,
     shader: &F,
     accum_buf: &AccumBuffer,
     preview: Option<&Preview>,
-    done: &AtomicUsize,
-    total_samples: usize,
-    update_every: usize,
+    progress: Option<(&AtomicUsize, usize)>,
     start: Instant,
     cancelled: &AtomicBool,
 ) where
@@ -136,6 +121,7 @@ fn dispatch_tiles<F>(
 {
     let tile_count = tiles.len();
     let next_tile = AtomicUsize::new(0);
+    let active_threads = AtomicUsize::new(0);
 
     thread::scope(|scope| {
         for _ in 0..thread_count {
@@ -158,23 +144,25 @@ fn dispatch_tiles<F>(
                         break;
                     }
 
+                    active_threads.fetch_add(1, Ordering::Relaxed);
                     let tile = tiles[tile_idx];
                     render_tile(
                         tile,
                         w,
                         s_start,
                         s_end,
-                        spp,
                         &mut rng,
                         shader,
                         accum_buf,
                         preview,
-                        done,
-                        total_samples,
-                        update_every,
-                        start,
                         cancelled,
                     );
+                    let active = active_threads.fetch_sub(1, Ordering::Relaxed);
+
+                    if let Some((tiles_done, total_tiles)) = progress {
+                        let d = tiles_done.fetch_add(1, Ordering::Relaxed) + 1;
+                        print_progress(d, total_tiles, active, start);
+                    }
                 }
             });
         }

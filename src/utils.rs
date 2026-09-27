@@ -77,24 +77,21 @@ pub fn show_cursor() {
 }
 
 pub fn print_progress(
-    done: usize,
-    total: usize,
-    x: usize,
-    y: usize,
-    sample: usize,
-    samples: usize,
+    tiles_done: usize,
+    total_tiles: usize,
+    threads: usize,
     start: Instant,
 ) {
-    let percent = (done * 100 / total.max(1)).min(100);
+    let percent = (tiles_done * 100 / total_tiles.max(1)).min(100);
     let elapsed = start.elapsed().as_secs_f32();
-    let eta = if done > 0 {
-        total.saturating_sub(done) as f32 * elapsed / done as f32
+    let eta = if tiles_done > 0 {
+        total_tiles.saturating_sub(tiles_done) as f32 * elapsed / tiles_done as f32
     } else {
         0.0
     };
 
     let bar_w = 30;
-    let filled = (done * bar_w / total.max(1)).min(bar_w);
+    let filled = (tiles_done * bar_w / total_tiles.max(1)).min(bar_w);
     let bar = if filled >= bar_w {
         "=".repeat(bar_w)
     } else {
@@ -103,26 +100,25 @@ pub fn print_progress(
 
     let elapsed_s = start.elapsed().as_secs();
     let eta_s = eta as u64;
-    let eta_str = if done == 0 {
+    let eta_str = if tiles_done == 0 {
         "--".to_string()
     } else {
         format!("{}:{:02}", eta_s / 60, eta_s % 60)
     };
 
-    let sample_str = format!(
+    let tile_str = format!(
         "[{:>width$}/{}]",
-        sample,
-        samples,
-        width = samples.to_string().len(),
+        tiles_done,
+        total_tiles,
+        width = total_tiles.to_string().len(),
     );
 
     let line = format!(
-        "[{}] {}% | ({},{}) {} | {}:{:02} / {}",
+        "[{}] {:>2}% | {} ~ {} | {}:{:02} / {}",
         bar,
         percent,
-        x,
-        y,
-        sample_str,
+        tile_str,
+        threads,
         elapsed_s / 60,
         elapsed_s % 60,
         eta_str,
@@ -131,7 +127,7 @@ pub fn print_progress(
     print!(
         "\r{}{}",
         line,
-        " ".repeat(80usize.saturating_sub(line.len()))
+        " ".repeat(85usize.saturating_sub(line.len()))
     );
     io::stdout().flush().unwrap();
 }
