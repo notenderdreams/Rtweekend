@@ -79,21 +79,64 @@ impl Triangle {
 
 impl Object for Triangle {
     fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool {
+        // Möller–Trumbore Ray-Triangle Intersection
+        // ==========================================
+        // Ray equation:      P(t) = O + t * D
+        // Triangle surface:  P(u, v) = (1 - u - v)*v0 + u*v1 + v*v2
+        //                            = v0 + u*e1 + v*e2
+        //                    where e1 = v1 - v0, e2 = v2 - v0
+        //
+        // Intersection:      O + t * D = v0 + u*e1 + v*e2
+        //
+        // Linear system:
+        //   ┌                        ┐   ┌   ┐     ┌        ┐
+        //   │ -D.x    e1.x    e2.x   │   │ t │     │ tvec.x │
+        //   │ -D.y    e1.y    e2.y   │ * │ u │  =  │ tvec.y │   (where tvec = O - v0)
+        //   │ -D.z    e1.z    e2.z   │   │ v │     │ tvec.z │
+        //   └                        ┘   └   ┘     └        ┘
+        //
+        // Cramer's rule solutions:
+        //   det  = det([-D, e1, e2])            ┐
+        //        = (-D) · (e1 × e2)             │   Möller's trick
+        //        = e1 · (D × e2) = e1 · pvec    ┘
+        //  (rewriting det with pvec = D × e2 allows reusing it to solve u)
+        //
+        //   pvec = D × e2
+        //   det  = e1 · pvec
+        //   u    = (tvec · pvec) / det
+        //   qvec = tvec × e1
+        //   v    = (D · qvec) / det
+        //   t    = (e2 · qvec) / det
+        //
+        // Hit conditions:
+        //   det.abs() >= 1e-8
+        //   0.0 <= u <= 1.0
+        //   v >= 0.0 && (u + v) <= 1.0
+        //   t ∈ [t_min, t_max]
+
         let e1 = self.v1 - self.v0;
         let e2 = self.v2 - self.v0;
 
+        // pvec = D × e2
         let pvec = r.direction.cross(e2);
+
         let det = e1.dot(pvec);
 
         if det.abs() < 1e-8 {
+            // !(det.abs() >= 1e-8)
             return false;
         }
 
-        let inv_det = 1.0 / det;
+        // tvec = O - v0
         let tvec = r.origin - self.v0;
 
+        let inv_det = 1.0 / det;
+
+        // u = (tvec · pvec) / det
         let u = tvec.dot(pvec) * inv_det;
+
         if !(0.0..=1.0).contains(&u) {
+            // !(0.0 <= u <= 1.0)
             return false;
         }
 
@@ -101,11 +144,13 @@ impl Object for Triangle {
 
         let v = r.direction.dot(qvec) * inv_det;
         if v < 0.0 || (u + v) > 1.0 {
+            // !(v >= 0.0 && (u + v) <= 1.0)
             return false;
         }
 
         let t = e2.dot(qvec) * inv_det;
         if !ray_t.contains(t) {
+            // !(t ∈ [t_min, t_max])
             return false;
         }
 
@@ -113,6 +158,12 @@ impl Object for Triangle {
         rec.p = r.at(t);
         rec.mat = Some(Arc::clone(&self.mat));
 
+        // If (n0, n1, n2) are provided,
+        //       [Smooth Shading] : interpolate them across the surface using barycentric weights
+        //       N = normalize(w*n0 + u*n1 + v*n2)
+        // Else,
+        //       [Flat Shading]   : perpendicular geometric face normal
+        //       N = normalize((v1 - v0) × (v2 - v0))
         let outward_normal = match (self.n0, self.n1, self.n2) {
             (Some(n0), Some(n1), Some(n2)) => {
                 let w = 1.0 - u - v;

@@ -33,6 +33,16 @@ pub fn render_tile<F>(
         });
     }
 
+    // Records how many samples have been fully finished across this tile:
+    //
+    // Why `s_start - 1`:
+    //    * Stage 1 starts at sample 1 -> 0 samples were done beforehand (1 - 1 = 0).
+    //    * Stage 2 starts at sample 2 -> 1 sample was already finished in Stage 1 (2 - 1 = 1).
+    //
+    // Why we need it:
+    //      If rendering finishes or gets cancelled midway through a sample, this gives
+    //      us the last valid sample count to average and erase the red corner markers
+    //      without dividing by zero.
     let mut last_complete_sample = s_start.saturating_sub(1);
 
     'outer: for s in s_start..=s_end {

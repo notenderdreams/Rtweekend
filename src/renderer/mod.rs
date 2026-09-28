@@ -17,6 +17,34 @@ use worker::render_tile;
 
 pub const TILE_SIZE: usize = 32;
 
+/// Main rendering orchestrator.
+///
+/// Two-stage render: a fast draft pass, then refinement.
+///
+///     Main Thread
+///         │
+///         ▼
+///     allocate `accum_buf`
+///         │
+///         ▼
+///     dispatch_tiles(samples 1..=1)                        STAGE 1: DRAFT
+///         │   • spawns N threads, main thread blocks       • every tile gets sample 1
+///         │   • threads exit when all tiles are done       • instant rough preview
+///         ▼
+///     spp > 1 && !cancelled ?
+///         │
+///         ├── TRUE ─────► dispatch_tiles(samples 2..=spp)  STAGE 2: REFINE
+///         │               • spawns N threads again         • samples accumulate onto stage 1
+///         │               • main thread blocks again       • progress reported per tile
+///         │                   │
+///         └── FALSE ───────►  │
+///                             │
+///                             ▼
+///                     normalize: accum / spp
+///                             │
+///                             ▼
+///                        Output Image
+///
 pub fn render<F>(
     img: &mut Image,
     samples_per_pixel: usize,
@@ -44,12 +72,12 @@ where
 
     hide_cursor();
 
-    // Stage 1: Full-scene initial draft (1 sample across all tiles)
     let stage1_progress = if samples_per_pixel == 1 {
         Some((&tiles_done, tiles.len()))
     } else {
         None
     };
+
     dispatch_tiles(
         &tiles,
         w,
@@ -64,7 +92,6 @@ where
         &cancelled,
     );
 
-    // Stage 2: Tiled cleanup (samples 2..=spp per tile, center-out)
     if samples_per_pixel > 1 && !cancelled.load(Ordering::Relaxed) {
         dispatch_tiles(
             &tiles,
@@ -103,6 +130,7 @@ where
     completed
 }
 
+/// Spawns a scoped thread pool to render tiles using dynamic work stealing.
 #[allow(clippy::too_many_arguments)]
 fn dispatch_tiles<F>(
     tiles: &[Tile],
@@ -132,6 +160,10 @@ fn dispatch_tiles<F>(
                         break;
                     }
 
+                    // Bail out if the GUI signals:
+                    //   - abort:   window closed
+                    //   - restart: camera moved, current render is stale
+                    // Setting `cancelled` propagates the stop to all other workers.
                     if preview.is_some_and(|p| {
                         p.abort.load(Ordering::Relaxed) || p.restart.load(Ordering::Relaxed)
                     }) {
@@ -147,15 +179,7 @@ fn dispatch_tiles<F>(
                     active_threads.fetch_add(1, Ordering::Relaxed);
                     let tile = tiles[tile_idx];
                     render_tile(
-                        tile,
-                        w,
-                        s_start,
-                        s_end,
-                        &mut rng,
-                        shader,
-                        accum_buf,
-                        preview,
-                        cancelled,
+                        tile, w, s_start, s_end, &mut rng, shader, accum_buf, preview, cancelled,
                     );
                     let active = active_threads.fetch_sub(1, Ordering::Relaxed);
 

@@ -229,6 +229,7 @@ impl Camera {
 
         let mut rec = HRecord::new();
 
+        //0.001 buffer gives secondary rays room to clear their own surface and avoid self-hits.
         if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
             if let Some(mat) = &rec.mat
                 && let Some((attenuation, scattered)) = mat.scatter(r, &rec, rng)

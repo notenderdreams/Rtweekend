@@ -6,9 +6,11 @@ use std::{
 
 use crate::{interval::Interval, vec3::Color};
 
-// xorshift64
 static SEED_COUNTER: AtomicU64 = AtomicU64::new(0x853c_49e6_748f_ea9b);
 
+// Fast 64-bit PRNG using Xorshift64 algorithm, seeded via SplitMix64.
+// - Xorshift64: Marsaglia (2003), "Xorshift RNGs" (https://doi.org/10.18637/jss.v008.i14)
+// - SplitMix64: Steele et al. (2014), "Fast Splittable PRNGs" (https://doi.org/10.1145/2660193.2660195)
 #[derive(Clone, Copy)]
 pub struct Rng {
     state: u64,
@@ -76,12 +78,7 @@ pub fn show_cursor() {
     io::stdout().flush().unwrap();
 }
 
-pub fn print_progress(
-    tiles_done: usize,
-    total_tiles: usize,
-    threads: usize,
-    start: Instant,
-) {
+pub fn print_progress(tiles_done: usize, total_tiles: usize, threads: usize, start: Instant) {
     let percent = (tiles_done * 100 / total_tiles.max(1)).min(100);
     let elapsed = start.elapsed().as_secs_f32();
     let eta = if tiles_done > 0 {
@@ -137,6 +134,10 @@ pub fn linear_to_gamma(linear: f32) -> f32 {
 }
 
 pub fn to_u8(c: Color) -> (u8, u8, u8) {
+    // Why clamping to [0, 0.999]?
+    //                          truncated to u8
+    // 256.0 × 0.999 = 255.744 ────────────────→ 255
+    // Guarantees the result stays within [0, 255].
     let intensity = Interval::new(0.000, 0.999);
 
     let r = linear_to_gamma(intensity.clamp(c.x));

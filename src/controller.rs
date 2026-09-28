@@ -76,6 +76,14 @@ impl CameraController {
             changed = true;
         }
 
+        // Yaw:
+        //    Rotate around the global Y-axis in the horizontal (X, Z) plane:
+        //      ┌       ┐   ┌                 ┐ ┌   ┐
+        //      │ new_x │ = │  cos(α) -sin(α) │ │ x │
+        //      │ new_z │   │  sin(α)  cos(α) │ │ z │
+        //      └       ┘   └                 ┘ └   ┘
+        //      new_dir = (new_x, current_dir.y, new_z)
+        //
         if win.is_key_down(Key::Left) || win.is_key_down(Key::Right) {
             let angle = if win.is_key_down(Key::Left) {
                 -self.rot_speed
@@ -90,6 +98,18 @@ impl CameraController {
             changed = true;
         }
 
+        // Pitch :
+        //    Cannot rotate around global X-axis (camera may face any compass heading).
+        //    Instead, build a camera-local orthonormal frame and rotate 'forward'
+        //    toward 'up' within the vertical (curr_fwd, curr_up) plane:
+        //
+        //      curr_fwd   = normalize(lookat - lookfrom)
+        //      curr_right = normalize(curr_fwd × vup)
+        //      curr_up    = normalize(curr_fwd × curr_right)
+        //
+        //    Planar rotation in (curr_fwd, curr_up) basis:
+        //      new_fwd = normalize(curr_fwd · cos(α) + curr_up · sin(α))
+        //
         if win.is_key_down(Key::Up) || win.is_key_down(Key::Down) {
             let angle = if win.is_key_down(Key::Up) {
                 self.rot_speed
@@ -103,6 +123,10 @@ impl CameraController {
             let new_fwd = (curr_fwd * cos_a + curr_up * sin_a).normalize();
             self.current.lookat = self.current.lookfrom + new_fwd;
 
+            //  Gimbal Lock Guard:
+            //    When new_fwd approaches ±Y (straight up/down):
+            //      curr_fwd × vup ≈ (0, 0, 0)  =>  division by zero & camera flip!
+            //    Threshold |new_fwd.y| < 0.98 caps pitch to ~78.5°, preventing singularity.
             if new_fwd.y.abs() < 0.98 {
                 self.current.lookat = self.current.lookfrom + new_fwd * dist;
                 changed = true;

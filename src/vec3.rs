@@ -140,11 +140,41 @@ pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
 }
 
 pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f32) -> Vec3 {
+    // Snell's Law (Vector Form):
+    // Ref: Peter Shirley, "Ray Tracing in One Weekend", Section 11.2 "Snell's Law"
+    // https://raytracing.github.io/books/RayTracingInOneWeekend.html#dielectrics/snell'slaw
+    //
+    //   η · sin(θ) = η' · sin(θ')  =>  sin(θ') = (η / η') · sin(θ)
+    //
+    // Decompose refracted ray R' into perpendicular and parallel components relative to n:
+    //   R' = R'⟂ + R'∥
+    //
+    // Component Equations:
+    //   cos(θ) = (-uv) · n
+    //   R'⟂    = (η / η') · (uv + cos(θ) · n)
+    //   R'∥    = -sqrt(1 - |R'⟂|²) · n
+    //   R'     = R'∥ + R'⟂
+    //
+    //               Normal n
+    //                  ▲
+    //     Incoming     │
+    //     Ray uv ╲     │
+    //             ╲ θ  │
+    //              ╲   │
+    // ──────────────▼──┴────────────── Surface
+    //               ╲  │
+    //                ╲ │
+    //                 ╲│ R'∥ (along -n)
+    //                  ▼
+    //                   ╲   R'⟂ (transverse)
+    //                    ▼
+    //                     R' = R'∥ + R'⟂
+    //
     let cos_theta = (-uv).dot(n).min(1.0);
 
-    let r_out_prep = etai_over_etat * (uv + cos_theta * n);
+    let r_out_perp = etai_over_etat * (uv + cos_theta * n);
 
-    let r_out_parallel = -(1.0 - r_out_prep.len_squared()).abs().sqrt();
+    let r_out_parallel = -(1.0 - r_out_perp.len_squared()).abs().sqrt() * n;
 
-    r_out_parallel * n + r_out_prep
+    r_out_parallel + r_out_perp
 }
