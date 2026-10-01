@@ -15,7 +15,12 @@ impl BVHNode {
         Self::build(&mut objects, rng)
     }
     pub fn build(objects: &mut [Arc<dyn Object>], rng: &mut Rng) -> Self {
-        let comparator = match rng.random_range(0.0, 3.0) as usize {
+        let mut bbox = AABB::EMPTY;
+        for obj in objects.iter() {
+            bbox = AABB::enclose(&bbox, &obj.bounding_box());
+        }
+
+        let comparator = match bbox.longest_axis() {
             0 => box_x_compare,
             1 => box_y_compare,
             _ => box_z_compare,

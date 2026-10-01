@@ -33,13 +33,21 @@ use crate::{
 };
 
 fn main() {
-    let mut world = ObjectList::new();
+    let mut spheres = ObjectList::new();
     let mut rng = Rng::new(0);
 
-    scene_setup(&mut world, &mut rng);
-    // let render_world = Arc::new(world);
-    let bvh_tree = BVHNode::from_list(world, &mut rng);
-    let render_world = Arc::new(bvh_tree);
+    scene_setup(&mut spheres, &mut rng);
+    let bvh_tree = BVHNode::from_list(spheres, &mut rng);
+
+    let mut world = ObjectList::new();
+    let m_ground: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, -1000.0, 0.0),
+        1000.0,
+        m_ground,
+    )));
+    world.add(Box::new(bvh_tree));
+    let render_world = Arc::new(world);
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
@@ -77,12 +85,6 @@ fn main() {
 }
 
 fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
-    let m_ground: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
-    world.add(Box::new(Sphere::new(
-        Point::new(0.0, -1000.0, 0.0),
-        1000.0,
-        m_ground,
-    )));
 
     for a in -11..11 {
         for b in -11..11 {

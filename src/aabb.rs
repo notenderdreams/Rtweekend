@@ -71,6 +71,20 @@ impl AABB {
         Self::new(new_x, new_y, new_z)
     }
 
+    pub fn longest_axis(&self) -> usize {
+        let x_len = self.x.size();
+        let y_len = self.y.size();
+        let z_len = self.z.size();
+
+        if x_len > y_len {
+            if x_len > z_len { 0 } else { 2 }
+        } else if y_len > z_len {
+            1
+        } else {
+            2
+        }
+    }
+
     pub fn hit(&self, r: &Ray, mut ray_t: Interval) -> bool {
         let axes = [
             (self.x, r.origin.x, r.direction.x),
