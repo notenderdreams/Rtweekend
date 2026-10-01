@@ -5,11 +5,11 @@ use crate::{
     material::Material,
     object::{HRecord, Object},
     ray::Ray,
-    vec3::Point,
+    vec3::{Point, Vec3},
 };
 
 pub struct Sphere {
-    center: Point,
+    center: Ray,
     radius: f32,
     mat: Arc<dyn Material>,
 }
@@ -17,7 +17,15 @@ pub struct Sphere {
 impl Sphere {
     pub fn new(center: Point, radius: f32, mat: Arc<dyn Material>) -> Self {
         Self {
-            center,
+            center: Ray::new(center, Vec3::zero(), 0.0),
+            radius: radius.max(0.0),
+            mat,
+        }
+    }
+
+    pub fn new_moving(center1: Point, center2: Point, radius: f32, mat: Arc<dyn Material>) -> Self {
+        Self {
+            center: Ray::new(center1, center2 - center1, 0.0),
             radius: radius.max(0.0),
             mat,
         }
@@ -49,8 +57,8 @@ impl Object for Sphere {
         // Therefore:
         //      discriminant = h² - ac
         //      root = (h ± √discriminant) / a
-
-        let oc = self.center - r.origin;
+        let current_center = self.center.at(r.time);
+        let oc = current_center - r.origin;
         let a = r.direction.len_squared();
         let h = r.direction.dot(oc);
         let c = oc.len_squared() - self.radius * self.radius;
@@ -67,7 +75,6 @@ impl Object for Sphere {
         let sqrtd = discriminant.sqrt();
 
         let mut root = (h - sqrtd) / a;
-
         if !ray_t.surrounds(root) {
             // Near root is behind ray origin or occluded; try the far root
             // (e.g. inside a glass bubble)
@@ -81,7 +88,7 @@ impl Object for Sphere {
         rec.p = r.at(rec.t);
         // Vector from center to hit point (P - C) points outward.
         // Since |P - C| = radius, dividing by radius normalizes it.
-        let outward_normal = (rec.p - self.center) / self.radius;
+        let outward_normal = (rec.p - current_center) / self.radius;
 
         rec.set_face_normal(r, outward_normal);
         rec.mat = Some(Arc::clone(&self.mat));
