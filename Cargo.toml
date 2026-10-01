@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 minifb = { version = "0.28.0", default-features = false }
+zune-jpeg = "0.5"
 
 
 [profile.release]

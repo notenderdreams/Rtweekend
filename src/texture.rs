@@ -1,4 +1,6 @@
-use std::sync::Arc;
+use std::{io::BufReader, sync::Arc};
+
+use zune_jpeg::JpegDecoder;
 
 use crate::vec3::{Color, Point};
 
@@ -63,5 +65,98 @@ impl Texture for CheckerTexture {
         } else {
             self.odd.value(u, v, p)
         }
+    }
+}
+
+pub struct RtwImage {
+    width: usize,
+    height: usize,
+    bytes_per_scanline: usize,
+    data: Vec<u8>,
+}
+
+impl RtwImage {
+    pub fn new(path: &str) -> Self {
+        let load = || -> Result<(usize, usize, Vec<u8>), ()> {
+            let file = std::fs::File::open(path).map_err(|_| ())?;
+            let mut decoder = JpegDecoder::new(BufReader::new(file));
+            let pixels = decoder.decode().map_err(|_| ())?;
+            let info = decoder.info().ok_or(())?;
+            let (w, h) = (info.width as usize, info.height as usize);
+            Ok((w, h, pixels))
+        };
+
+        if let Ok((width, height, data)) = load() {
+            return Self {
+                width,
+                height,
+                bytes_per_scanline: width * 3,
+                data,
+            };
+        }
+
+        eprintln!("ERROR: Could not load image file '{}'.", path);
+        Self {
+            width: 0,
+            height: 0,
+            bytes_per_scanline: 0,
+            data: Vec::new(),
+        }
+    }
+    pub fn width(&self) -> usize {
+        self.width
+    }
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    pub fn pixel_data(&self, mut x: usize, mut y: usize) -> (u8, u8, u8) {
+        if self.data.is_empty() {
+            return (255, 0, 255);
+        }
+        x = x.clamp(0, self.width.saturating_sub(1));
+        y = y.clamp(0, self.height.saturating_sub(1));
+        let index = y * self.bytes_per_scanline + x * 3;
+        (self.data[index], self.data[index + 1], self.data[index + 2])
+    }
+}
+
+pub struct ImageTexture {
+    image: RtwImage,
+}
+
+impl ImageTexture {
+    pub fn new(path: &str) -> Self {
+        Self {
+            image: RtwImage::new(path),
+        }
+    }
+}
+
+impl Texture for ImageTexture {
+    fn value(&self, u: f32, v: f32, _p: &Point) -> Color {
+        if self.image.height() == 0 {
+            return Color::new(0.0, 1.0, 1.0);
+        }
+
+        let u = u.clamp(0.0, 1.0);
+        let v = 1.0 - v.clamp(0.0, 1.0); // Flip v to match image coordinates
+
+        let mut i = (u * self.image.width() as f32) as usize;
+        let mut j = (v * self.image.height() as f32) as usize;
+
+        if i >= self.image.width() {
+            i = self.image.width() - 1;
+        }
+        if j >= self.image.height() {
+            j = self.image.height() - 1;
+        }
+        let (r, g, b) = self.image.pixel_data(i, j);
+        let color_scale = 1.0 / 255.0;
+        Color::new(
+            r as f32 * color_scale,
+            g as f32 * color_scale,
+            b as f32 * color_scale,
+        )
     }
 }

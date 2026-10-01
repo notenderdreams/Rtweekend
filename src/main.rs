@@ -1,5 +1,4 @@
 mod aabb;
-mod texture;
 mod bvh;
 mod camera;
 mod controller;
@@ -12,6 +11,7 @@ mod object_list;
 mod ray;
 mod renderer;
 mod sphere;
+mod texture;
 // mod triangle;
 mod utils;
 mod vec3;
@@ -29,12 +29,26 @@ use crate::{
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
     sphere::Sphere,
-    texture::CheckerTexture,
+    texture::{CheckerTexture, ImageTexture},
     utils::Rng,
     vec3::{Color, Point, Vec3},
 };
 
 fn main() {
+    let scene_id: usize = std::env::args()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(2);
+
+    match scene_id {
+        1 => bouncing_spheres(),
+        2 => checkered_spheres(),
+        3 => earth(),
+        _ => checkered_spheres(),
+    }
+}
+
+fn bouncing_spheres() {
     let mut spheres = ObjectList::new();
     let mut rng = Rng::new(0);
 
@@ -54,7 +68,6 @@ fn main() {
         m_ground,
     )));
     world.add(Box::new(bvh_tree));
-    let render_world = Arc::new(world);
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
@@ -71,6 +84,49 @@ fn main() {
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
     cam.defocus_angle = 0.4;
     cam.focus_dist = (cam.lookfrom - cam.lookat).len();
+
+    render(cam, world);
+}
+
+fn checkered_spheres() {
+    let mut world = ObjectList::new();
+
+    let checker = Arc::new(CheckerTexture::from_colors(
+        0.32,
+        Color::new(0.2, 0.3, 0.1),
+        Color::new(0.9, 0.9, 0.9),
+    ));
+
+    let mat: Arc<dyn Material> = Arc::new(Lambertian::new(checker));
+
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, -10.0, 0.0),
+        10.0,
+        mat.clone(),
+    )));
+    world.add(Box::new(Sphere::new(Point::new(0.0, 10.0, 0.0), 10.0, mat)));
+
+    // Camera
+    let aspect_ratio = 16.0 / 9.0;
+    let img_w: usize = 400;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
+    let samples_per_pixel: usize = 100;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point::new(13.0, 2.0, 3.0);
+    cam.lookat = Point::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.0;
+    cam.focus_dist = (cam.lookfrom - cam.lookat).len();
+
+    render(cam, world);
+}
+
+fn render(mut cam: Camera, world: ObjectList) {
+    let render_world = Arc::new(world);
 
     let controller = Arc::new(Mutex::new(CameraController::new(
         cam.lookfrom,
@@ -90,9 +146,35 @@ fn main() {
         std::fs::write("output.ppm", img.to_ppm()).unwrap();
     }
 }
+fn earth() {
+    let mut world = ObjectList::new();
+
+    // Directly specify the path to the JPG
+    let earth_texture = Arc::new(ImageTexture::new("assets/earthmap.jpg"));
+    let earth_surface: Arc<dyn Material> = Arc::new(Lambertian::new(earth_texture));
+    let globe = Box::new(Sphere::new(Point::new(0.0, 0.0, 0.0), 2.0, earth_surface));
+    world.add(globe);
+
+    // Camera
+    let aspect_ratio = 16.0 / 9.0;
+    let img_w: usize = 400;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
+    let samples_per_pixel: usize = 100;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point::new(0.0, 0.0, 12.0);
+    cam.lookat = Point::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.0;
+    cam.focus_dist = (cam.lookfrom - cam.lookat).len();
+
+    render(cam, world);
+}
 
 fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
-
     for a in -11..11 {
         for b in -11..11 {
             let choose_mat = rng.random();
@@ -105,7 +187,8 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
             if (center - Point::new(4.0, 0.2, 0.0)).len() > 0.9 {
                 let sphere = match choose_mat {
                     x if x < 0.8 => {
-                        let mat = Arc::new(Lambertian::from_color(Color::rand(rng) * Color::rand(rng)));
+                        let mat =
+                            Arc::new(Lambertian::from_color(Color::rand(rng) * Color::rand(rng)));
                         let center2 = center + Vec3::new(0.0, rng.random_range(0.0, 0.5), 0.0);
                         Sphere::new_moving(center, center2, 0.2, mat)
                     }
@@ -137,7 +220,8 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
         m_dielectric,
     )));
 
-    let m_lambertian: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.4, 0.2, 0.1)));
+    let m_lambertian: Arc<dyn Material> =
+        Arc::new(Lambertian::from_color(Color::new(0.4, 0.2, 0.1)));
     world.add(Box::new(Sphere::new(
         Point::new(-4.0, 1.0, 0.0),
         1.0,
