@@ -1,4 +1,5 @@
 use crate::{
+    aabb::AABB,
     interval::Interval,
     object::{HRecord, Object},
     ray::Ray,
@@ -6,15 +7,26 @@ use crate::{
 
 pub struct ObjectList {
     pub objects: Vec<Box<dyn Object>>,
+    bbox: AABB,
 }
 
 impl ObjectList {
     pub fn new() -> Self {
-        Self { objects: vec![] }
+        Self {
+            objects: vec![],
+            bbox: AABB::EMPTY,
+        }
     }
 
     pub fn add(&mut self, obj: Box<dyn Object>) {
+        self.bbox = AABB::enclose(&self.bbox, &obj.bounding_box());
         self.objects.push(obj);
+    }
+}
+
+impl Default for ObjectList {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -33,5 +45,10 @@ impl Object for ObjectList {
             }
         }
         hit_anything
+    }
+
+    #[inline]
+    fn bounding_box(&self) -> AABB {
+        self.bbox
     }
 }

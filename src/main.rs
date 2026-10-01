@@ -1,3 +1,5 @@
+mod aabb;
+mod bvh;
 mod camera;
 mod controller;
 mod gui;
@@ -19,13 +21,13 @@ use std::{
 };
 
 use crate::{
+    bvh::BVHNode,
     camera::Camera,
     controller::CameraController,
     gui::Preview,
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
     sphere::Sphere,
-    // triangle::{Triangle, make_box},
     utils::Rng,
     vec3::{Color, Point, Vec3},
 };
@@ -35,13 +37,15 @@ fn main() {
     let mut rng = Rng::new(0);
 
     scene_setup(&mut world, &mut rng);
-    let world = Arc::new(world);
+    // let render_world = Arc::new(world);
+    let bvh_tree = BVHNode::from_list(world, &mut rng);
+    let render_world = Arc::new(bvh_tree);
 
     // Camera
     let aspect_ratio = 16.0 / 9.0;
-    let img_w: usize = 400;
+    let img_w: usize = 1240;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-    let samples_per_pixel: usize = 200;
+    let samples_per_pixel: usize = 100;
     let max_depth: usize = 50;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
@@ -62,7 +66,6 @@ fn main() {
 
     let preview = Arc::new(Preview::new(cam.img_w, cam.img_h, Arc::clone(&controller)));
     let render_preview = Arc::clone(&preview);
-    let render_world = Arc::clone(&world);
 
     let handle =
         thread::spawn(move || cam.render_loop(render_world.as_ref(), Some(&render_preview)));

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    aabb::AABB,
     interval::Interval,
     material::Material,
     ray::Ray,
@@ -38,4 +39,6 @@ impl HRecord {
 
 pub trait Object: Send + Sync {
     fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool;
+
+    fn bounding_box(&self) -> AABB;
 }

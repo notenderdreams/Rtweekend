@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    aabb::AABB,
     interval::Interval,
     material::Material,
     object::{HRecord, Object},
@@ -12,22 +13,33 @@ pub struct Sphere {
     center: Ray,
     radius: f32,
     mat: Arc<dyn Material>,
+    bbox: AABB,
 }
 
 impl Sphere {
     pub fn new(center: Point, radius: f32, mat: Arc<dyn Material>) -> Self {
+        let rvec = Vec3::new(radius, radius, radius);
+        let bbox = AABB::from_points(center - rvec, center + rvec);
         Self {
             center: Ray::new(center, Vec3::zero(), 0.0),
             radius: radius.max(0.0),
             mat,
+            bbox,
         }
     }
 
     pub fn new_moving(center1: Point, center2: Point, radius: f32, mat: Arc<dyn Material>) -> Self {
+        let center_ray = Ray::new(center1, center2 - center1, 0.0);
+        let rvec = Vec3::new(radius, radius, radius);
+
+        let box0 = AABB::from_points(center_ray.at(0.0) - rvec, center_ray.at(0.0) + rvec);
+        let box1 = AABB::from_points(center_ray.at(1.0) - rvec, center_ray.at(1.0) + rvec);
+        let bbox = AABB::enclose(&box0, &box1);
         Self {
-            center: Ray::new(center1, center2 - center1, 0.0),
+            center: center_ray,
             radius: radius.max(0.0),
             mat,
+            bbox,
         }
     }
 }
@@ -94,5 +106,10 @@ impl Object for Sphere {
         rec.mat = Some(Arc::clone(&self.mat));
 
         true
+    }
+
+    #[inline]
+    fn bounding_box(&self) -> AABB {
+        self.bbox
     }
 }
