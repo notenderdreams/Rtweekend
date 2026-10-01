@@ -2,7 +2,7 @@ use std::{io::BufReader, sync::Arc};
 
 use zune_jpeg::JpegDecoder;
 
-use crate::vec3::{Color, Point};
+use crate::{perlin::Perlin, vec3::{Color, Point}};
 
 pub trait Texture: Send + Sync {
     fn value(&self, u: f32, v: f32, p: &Point) -> Color;
@@ -158,5 +158,30 @@ impl Texture for ImageTexture {
             g as f32 * color_scale,
             b as f32 * color_scale,
         )
+    }
+}
+
+pub struct NoiseTexture {
+    noise: Perlin,
+}
+
+impl NoiseTexture {
+    pub fn new() -> Self {
+        Self {
+            noise: Perlin::new(),
+        }
+    }
+}
+
+impl Default for NoiseTexture {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Texture for NoiseTexture {
+    fn value(&self, _u: f32, _v: f32, p: &Point) -> Color {
+        // Maps the noise float [0.0, 1.0] to a greyscale color
+        Color::new(1.0, 1.0, 1.0) * self.noise.noise(p)
     }
 }

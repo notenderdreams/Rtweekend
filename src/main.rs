@@ -8,6 +8,7 @@ mod interval;
 mod material;
 mod object;
 mod object_list;
+mod perlin;
 mod ray;
 mod renderer;
 mod sphere;
@@ -29,7 +30,7 @@ use crate::{
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
     sphere::Sphere,
-    texture::{CheckerTexture, ImageTexture},
+    texture::{CheckerTexture, ImageTexture, NoiseTexture},
     utils::Rng,
     vec3::{Color, Point, Vec3},
 };
@@ -44,6 +45,7 @@ fn main() {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),
+        4 => perlin_spheres(),
         _ => checkered_spheres(),
     }
 }
@@ -227,4 +229,42 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
         1.0,
         m_lambertian,
     )));
+}
+
+fn perlin_spheres() {
+    let mut world = ObjectList::new();
+
+    let pertext = Arc::new(NoiseTexture::new());
+
+    // Large ground sphere
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, -1000.0, 0.0),
+        1000.0,
+        Arc::new(Lambertian::new(pertext.clone())),
+    )));
+
+    // Smaller top sphere
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, 2.0, 0.0),
+        2.0,
+        Arc::new(Lambertian::new(pertext)),
+    )));
+
+    // Camera setup
+    let aspect_ratio = 16.0 / 9.0;
+    let img_w: usize = 400;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
+    let samples_per_pixel: usize = 100;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point::new(13.0, 2.0, 3.0);
+    cam.lookat = Point::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.0;
+    cam.focus_dist = (cam.lookfrom - cam.lookat).len();
+
+    render(cam, world);
 }
