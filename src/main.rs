@@ -1,4 +1,5 @@
 mod aabb;
+mod texture;
 mod bvh;
 mod camera;
 mod controller;
@@ -28,6 +29,7 @@ use crate::{
     material::{Dielectric, Lambertian, Material, Metal},
     object_list::ObjectList,
     sphere::Sphere,
+    texture::CheckerTexture,
     utils::Rng,
     vec3::{Color, Point, Vec3},
 };
@@ -40,7 +42,12 @@ fn main() {
     let bvh_tree = BVHNode::from_list(spheres, &mut rng);
 
     let mut world = ObjectList::new();
-    let m_ground: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    let checker = Arc::new(CheckerTexture::from_colors(
+        0.9,
+        Color::new(0.2, 0.3, 0.1),
+        Color::new(0.9, 0.9, 0.9),
+    ));
+    let m_ground: Arc<dyn Material> = Arc::new(Lambertian::new(checker));
     world.add(Box::new(Sphere::new(
         Point::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -98,7 +105,7 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
             if (center - Point::new(4.0, 0.2, 0.0)).len() > 0.9 {
                 let sphere = match choose_mat {
                     x if x < 0.8 => {
-                        let mat = Arc::new(Lambertian::new(Color::rand(rng) * Color::rand(rng)));
+                        let mat = Arc::new(Lambertian::from_color(Color::rand(rng) * Color::rand(rng)));
                         let center2 = center + Vec3::new(0.0, rng.random_range(0.0, 0.5), 0.0);
                         Sphere::new_moving(center, center2, 0.2, mat)
                     }
@@ -130,7 +137,7 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
         m_dielectric,
     )));
 
-    let m_lambertian: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+    let m_lambertian: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.4, 0.2, 0.1)));
     world.add(Box::new(Sphere::new(
         Point::new(-4.0, 1.0, 0.0),
         1.0,

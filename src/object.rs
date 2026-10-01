@@ -13,6 +13,8 @@ pub struct HRecord {
     pub normal: Vec3,
     pub mat: Option<Arc<dyn Material>>,
     pub t: f32,
+    pub u: f32,
+    pub v: f32,
     pub front_face: bool,
 }
 
@@ -23,6 +25,8 @@ impl HRecord {
             normal: Vec3::zero(),
             mat: None,
             t: 0.0,
+            u: 0.0,
+            v: 0.0,
             front_face: false,
         }
     }

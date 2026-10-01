@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{f32::consts::PI, sync::Arc};
 
 use crate::{
     aabb::AABB,
@@ -102,6 +102,10 @@ impl Object for Sphere {
         // Since |P - C| = radius, dividing by radius normalizes it.
         let outward_normal = (rec.p - current_center) / self.radius;
 
+        let (u, v) = get_sphere_uv(&outward_normal);
+        rec.u = u;
+        rec.v = v;
+
         rec.set_face_normal(r, outward_normal);
         rec.mat = Some(Arc::clone(&self.mat));
 
@@ -112,4 +116,15 @@ impl Object for Sphere {
     fn bounding_box(&self) -> AABB {
         self.bbox
     }
+}
+
+fn get_sphere_uv(p: &Point) -> (f32, f32) {
+    let theta = (-p.y).clamp(-1.0, 1.0).acos();
+    let phi = (-p.z).atan2(p.x) + PI;
+
+    // - u: [0, 1] angle around Y axis from X = -1
+    // - v: [0, 1] angle from Y = -1 to Y = +1
+    let u = phi / (2.0 * PI);
+    let v = theta / PI;
+    (u, v)
 }
