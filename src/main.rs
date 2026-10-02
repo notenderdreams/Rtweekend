@@ -9,6 +9,7 @@ mod material;
 mod object;
 mod object_list;
 mod perlin;
+mod quad;
 mod ray;
 mod renderer;
 mod sphere;
@@ -23,16 +24,7 @@ use std::{
 };
 
 use crate::{
-    bvh::BVHNode,
-    camera::Camera,
-    controller::CameraController,
-    gui::Preview,
-    material::{Dielectric, Lambertian, Material, Metal},
-    object_list::ObjectList,
-    sphere::Sphere,
-    texture::{CheckerTexture, ImageTexture, NoiseTexture},
-    utils::Rng,
-    vec3::{Color, Point, Vec3},
+    bvh::BVHNode, camera::Camera, controller::CameraController, gui::Preview, material::{Dielectric, Lambertian, Material, Metal}, object_list::ObjectList, quad::Quad, sphere::Sphere, texture::{CheckerTexture, ImageTexture, NoiseTexture}, utils::Rng, vec3::{Color, Point, Vec3}
 };
 
 fn main() {
@@ -46,7 +38,9 @@ fn main() {
         2 => checkered_spheres(),
         3 => earth(),
         4 => perlin_spheres(),
-        _ => checkered_spheres(),
+        5 => quads(),
+        6 => planar_shapes(),
+        _ => quads(),
     }
 }
 
@@ -261,6 +255,132 @@ fn perlin_spheres() {
 
     cam.vfov = 20.0;
     cam.lookfrom = Point::new(13.0, 2.0, 3.0);
+    cam.lookat = Point::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.0;
+    cam.focus_dist = (cam.lookfrom - cam.lookat).len();
+
+    render(cam, world);
+}
+
+fn quads() {
+    let mut world = ObjectList::new();
+
+    // Materials
+    let left_red: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(1.0, 0.2, 0.2)));
+    let back_green: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.2, 1.0, 0.2)));
+    let right_blue: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.2, 0.2, 1.0)));
+    let upper_orange: Arc<dyn Material> =
+        Arc::new(Lambertian::from_color(Color::new(1.0, 0.5, 0.0)));
+    let lower_teal: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.2, 0.8, 0.8)));
+
+    // Quads
+    world.add(Box::new(Quad::new(
+        Point::new(-3.0, -2.0, 5.0),
+        Vec3::new(0.0, 0.0, -4.0),
+        Vec3::new(0.0, 4.0, 0.0),
+        left_red,
+    )));
+    world.add(Box::new(Quad::new(
+        Point::new(-2.0, -2.0, 0.0),
+        Vec3::new(4.0, 0.0, 0.0),
+        Vec3::new(0.0, 4.0, 0.0),
+        back_green,
+    )));
+    world.add(Box::new(Quad::new(
+        Point::new(3.0, -2.0, 1.0),
+        Vec3::new(0.0, 0.0, 4.0),
+        Vec3::new(0.0, 4.0, 0.0),
+        right_blue,
+    )));
+    world.add(Box::new(Quad::new(
+        Point::new(-2.0, 3.0, 1.0),
+        Vec3::new(4.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 4.0),
+        upper_orange,
+    )));
+    world.add(Box::new(Quad::new(
+        Point::new(-2.0, -3.0, 5.0),
+        Vec3::new(4.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -4.0),
+        lower_teal,
+    )));
+
+    // Camera
+    let aspect_ratio = 1.0;
+    let img_w: usize = 400;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
+    let samples_per_pixel: usize = 100;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
+
+    cam.vfov = 80.0;
+    cam.lookfrom = Point::new(0.0, 0.0, 9.0);
+    cam.lookat = Point::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.0;
+    cam.focus_dist = (cam.lookfrom - cam.lookat).len();
+
+    render(cam, world);
+}
+
+fn planar_shapes() {
+    let mut world = ObjectList::new();
+
+    let mat_tri: Arc<dyn Material> =
+        Arc::new(Lambertian::from_color(Color::new(1.0, 0.2, 0.2)));
+    let mat_disk: Arc<dyn Material> =
+        Arc::new(Lambertian::from_color(Color::new(0.2, 1.0, 0.2)));
+    let mat_ring: Arc<dyn Material> =
+        Arc::new(Lambertian::from_color(Color::new(0.2, 0.4, 1.0)));
+    let mat_floor: Arc<dyn Material> =
+        Arc::new(Lambertian::from_color(Color::new(0.8, 0.8, 0.8)));
+
+    // Floor Quad (Parallelogram)
+    world.add(Box::new(Quad::new(
+        Point::new(-5.0, -1.5, -5.0),
+        Vec3::new(10.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 10.0),
+        mat_floor,
+    )));
+
+    // 1. Triangle on the left
+    world.add(Box::new(Quad::triangle(
+        Point::new(-3.5, -1.0, 0.0),
+        Vec3::new(2.0, 0.0, 0.0),
+        Vec3::new(1.0, 2.0, 0.0),
+        mat_tri,
+    )));
+
+    // 2. Circular Disk in the center
+    world.add(Box::new(Quad::ellipse(
+        Point::new(0.0, 0.0, 0.0),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        mat_disk,
+    )));
+
+    // 3. Annulus (Ring) on the right (inner radius = 0.5)
+    world.add(Box::new(Quad::annulus(
+        Point::new(3.0, 0.0, 0.0),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        0.5,
+        mat_ring,
+    )));
+
+    // Camera
+    let aspect_ratio = 16.0 / 9.0;
+    let img_w: usize = 600;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
+    let samples_per_pixel: usize = 100;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
+
+    cam.vfov = 40.0;
+    cam.lookfrom = Point::new(0.0, 2.0, 8.0);
     cam.lookat = Point::new(0.0, 0.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
     cam.defocus_angle = 0.0;
