@@ -16,6 +16,7 @@ pub struct Camera {
     pub img_h: usize,
     pub samples_per_pixel: usize,
     pub max_depth: usize,
+    pub bg: Color,
 
     pub vfov: f32,
     pub lookfrom: Point,
@@ -64,6 +65,7 @@ impl Camera {
             img_h,
             samples_per_pixel,
             max_depth,
+            bg: Color::zero(),
             vfov,
             lookfrom,
             lookat,
@@ -231,19 +233,24 @@ impl Camera {
         let mut rec = HRecord::new();
 
         //0.001 buffer gives secondary rays room to clear their own surface and avoid self-hits.
-        if world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
-            if let Some(mat) = &rec.mat
-                && let Some((attenuation, scattered)) = mat.scatter(r, &rec, rng)
-            {
-                return attenuation * self.ray_color(&scattered, world, depth - 1, rng);
-            }
-            return Color::zero();
+        if !world.hit(r, Interval::new(0.001, f32::INFINITY), &mut rec) {
+            return self.bg;
         }
 
-        let unit_dir = r.direction.normalize();
-        let a = 0.5 * (unit_dir.y + 1.0);
-        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
+        let color_from_emission = rec
+            .mat
+            .as_ref()
+            .map_or(Color::zero(), |m| m.emitted(rec.u, rec.v, &rec.p));
+
+        let Some((attenuation, scattered)) = rec.mat.as_ref().and_then(|m| m.scatter(r, &rec, rng))
+        else {
+            return color_from_emission;
+        };
+
+        let color_from_scatter = attenuation * self.ray_color(&scattered, world, depth - 1, rng);
+        color_from_emission + color_from_scatter
     }
+    
     fn clay_color(&self, r: &Ray, world: &dyn Object) -> Color {
         let mut rec = HRecord::new();
 
