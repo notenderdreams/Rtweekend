@@ -46,3 +46,23 @@ pub trait Object: Send + Sync {
 
     fn bounding_box(&self) -> AABB;
 }
+
+impl<T: ?Sized + Object> Object for Arc<T> {
+    fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool {
+        (**self).hit(r, ray_t, rec)
+    }
+
+    fn bounding_box(&self) -> AABB {
+        (**self).bounding_box()
+    }
+}
+
+impl<T: ?Sized + Object> Object for Box<T> {
+    fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HRecord) -> bool {
+        (**self).hit(r, ray_t, rec)
+    }
+
+    fn bounding_box(&self) -> AABB {
+        (**self).bounding_box()
+    }
+}

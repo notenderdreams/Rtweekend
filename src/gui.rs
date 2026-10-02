@@ -37,6 +37,21 @@ impl Preview {
         self.buffer[i].store(pkd, Ordering::Relaxed);
     }
 
+    pub fn to_ppm(&self) -> String {
+        let mut ppm = format!("P3\n{} {}\n255\n", self.w, self.h);
+        for y in 0..self.h {
+            for x in 0..self.w {
+                let pkd = self.buffer[y * self.w + x].load(Ordering::Relaxed);
+                let r = (pkd >> 16) & 0xff;
+                let g = (pkd >> 8) & 0xff;
+                let b = pkd & 0xff;
+                ppm.push_str(&format!("{r} {g} {b} "));
+            }
+            ppm.push('\n');
+        }
+        ppm
+    }
+
     pub fn run(&self, title: &str) {
         let mut win = Window::new(title, self.w, self.h, WindowOptions::default())
             .expect("failed to open preview window");
@@ -49,6 +64,12 @@ impl Preview {
                 let next_clay = !self.clay.load(Ordering::Relaxed);
                 self.clay.store(next_clay, Ordering::Relaxed);
                 self.restart.store(true, Ordering::Relaxed);
+            }
+
+            if win.is_key_pressed(Key::P, KeyRepeat::No) {
+                if std::fs::write("output.ppm", self.to_ppm()).is_ok() {
+                    println!("Saved screenshot to output.ppm");
+                }
             }
 
             if self.controller.lock().unwrap().update(&win) {
