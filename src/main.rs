@@ -234,7 +234,7 @@ fn scene_setup(world: &mut ObjectList, rng: &mut Rng) {
 fn perlin_spheres() {
     let mut world = ObjectList::new();
 
-    let pertext = Arc::new(NoiseTexture::new());
+    let pertext = Arc::new(NoiseTexture::new(4.0));
 
     // Large ground sphere
     world.add(Box::new(Sphere::new(
