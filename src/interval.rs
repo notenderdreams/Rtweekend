@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
     pub min: f32,
@@ -72,5 +74,21 @@ impl Interval {
 impl Default for Interval {
     fn default() -> Self {
         Self::EMPTY
+    }
+}
+
+impl Add<f32> for Interval {
+    type Output = Self;
+
+    fn add(self, displacement: f32) -> Self::Output {
+        Self::new(self.min + displacement, self.max + displacement)
+    }
+}
+
+impl Add<Interval> for f32 {
+    type Output = Interval;
+
+    fn add(self, interval: Interval) -> Interval {
+        interval + self
     }
 }

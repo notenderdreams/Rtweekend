@@ -4,6 +4,7 @@ mod camera;
 mod controller;
 mod gui;
 mod image;
+mod instance;
 mod interval;
 mod material;
 mod object;
@@ -24,24 +25,14 @@ use std::{
 };
 
 use crate::{
-    bvh::BVHNode,
-    camera::Camera,
-    controller::CameraController,
-    gui::Preview,
-    material::{Dielectric, DiffuseLight, Lambertian, Material, Metal},
-    object_list::ObjectList,
-    quad::Quad,
-    sphere::Sphere,
-    texture::{CheckerTexture, ImageTexture, NoiseTexture},
-    utils::Rng,
-    vec3::{Color, Point, Vec3},
+    bvh::BVHNode, camera::Camera, controller::CameraController, gui::Preview, instance::{RotateY, Translate}, material::{Dielectric, DiffuseLight, Lambertian, Material, Metal}, object_list::ObjectList, quad::{Quad, box_primitive}, sphere::Sphere, texture::{CheckerTexture, ImageTexture, NoiseTexture}, utils::Rng, vec3::{Color, Point, Vec3}
 };
 
 fn main() {
     let scene_id: usize = std::env::args()
         .nth(1)
         .and_then(|s| s.parse().ok())
-        .unwrap_or(8);
+        .unwrap_or(7);
 
     match scene_id {
         1 => bouncing_spheres(),
@@ -49,9 +40,9 @@ fn main() {
         3 => earth(),
         4 => perlin_spheres(),
         5 => quads(),
-        6 => planar_shapes(),
-        7 => simple_light(),
-        8 => cornell_box(),
+        6 => simple_light(),
+        7 => cornell_box(),
+        8 => planar_shapes(),
         _ => cornell_box(),
     }
 }
@@ -459,58 +450,69 @@ fn simple_light() {
     render(cam, world);
 }
 
-fn cornell_box() {
+pub fn cornell_box() {
     let mut world = ObjectList::new();
 
-    let red: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.65, 0.05, 0.05)));
-    let white: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.73, 0.73, 0.73)));
-    let green: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.12, 0.45, 0.15)));
-    let light: Arc<dyn Material> = Arc::new(DiffuseLight::from_color(Color::new(15.0, 15.0, 15.0)));
+    let red = Arc::new(Lambertian::from_color(Color::new(0.65, 0.05, 0.05)));
+    let white = Arc::new(Lambertian::from_color(Color::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::from_color(Color::new(0.12, 0.45, 0.15)));
+    let light = Arc::new(DiffuseLight::from_color(Color::new(15.0, 15.0, 15.0)));
 
-    // Right wall (green)
+    // 5 Walls + Ceiling Light
     world.add(Box::new(Quad::new(
         Point::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 555.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
         green,
     )));
-    // Left wall (red)
     world.add(Box::new(Quad::new(
         Point::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 555.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
         red,
     )));
-    // Ceiling light
     world.add(Box::new(Quad::new(
         Point::new(343.0, 554.0, 332.0),
         Vec3::new(-130.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, -105.0),
         light,
     )));
-    // Floor (white)
     world.add(Box::new(Quad::new(
         Point::new(0.0, 0.0, 0.0),
         Vec3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
         white.clone(),
     )));
-    // Ceiling (white)
     world.add(Box::new(Quad::new(
         Point::new(555.0, 555.0, 555.0),
         Vec3::new(-555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, -555.0),
         white.clone(),
     )));
-    // Back wall (white)
     world.add(Box::new(Quad::new(
         Point::new(0.0, 0.0, 555.0),
         Vec3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 555.0, 0.0),
-        white,
+        white.clone(),
     )));
 
-    // Camera
+    // Box 1 (Tall Block): 165 x 330 x 165, rotated 15 deg, translated to (265, 0, 295)
+    let box1 = box_primitive(
+        Point::zero(),
+        Point::new(165.0, 330.0, 165.0),
+        white.clone(),
+    );
+    let box1 = Arc::new(RotateY::new(box1, 15.0));
+    let box1 = Box::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
+    world.add(box1);
+
+    // Box 2 (Short Block): 165 x 165 x 165, rotated -18 deg, translated to (130, 0, 65)
+    let box2 = box_primitive(Point::zero(), Point::new(165.0, 165.0, 165.0), white);
+    let box2 = Arc::new(RotateY::new(box2, -18.0));
+    let box2 = Box::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
+    world.add(box2);
+
+    // Camera Configuration
     let aspect_ratio = 1.0;
     let img_w: usize = 600;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
@@ -518,15 +520,12 @@ fn cornell_box() {
     let max_depth: usize = 50;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
-
     cam.bg = Color::new(0.0, 0.0, 0.0);
-
     cam.vfov = 40.0;
     cam.lookfrom = Point::new(278.0, 278.0, -800.0);
     cam.lookat = Point::new(278.0, 278.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
     cam.defocus_angle = 0.0;
-    cam.focus_dist = 10.0;
 
     render(cam, world);
 }

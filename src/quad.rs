@@ -5,6 +5,7 @@ use crate::{
     interval::Interval,
     material::Material,
     object::{HRecord, Object},
+    object_list::ObjectList,
     ray::Ray,
     vec3::{Point, Vec3},
 };
@@ -172,10 +173,6 @@ impl Object for Quad {
     }
 }
 
-// ============================================================================
-// Convenience Constructors
-// ============================================================================
-
 pub struct Triangle;
 impl Triangle {
     pub fn new(q: Point, u: Vec3, v: Vec3, mat: Arc<dyn Material>) -> Quad {
@@ -201,4 +198,61 @@ impl Annulus {
     ) -> Quad {
         Quad::annulus(center, side_a, side_b, inner_radius, mat)
     }
+}
+
+pub fn box_primitive(a: Point, b: Point, mat: Arc<dyn Material>) -> Arc<dyn Object> {
+    let mut sides = ObjectList::new();
+
+    // Construct extrema points
+    let min = Point::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z));
+    let max = Point::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z));
+
+    let dx = Vec3::new(max.x - min.x, 0.0, 0.0);
+    let dy = Vec3::new(0.0, max.y - min.y, 0.0);
+    let dz = Vec3::new(0.0, 0.0, max.z - min.z);
+
+    // Front (+Z)
+    sides.add(Box::new(Quad::new(
+        Point::new(min.x, min.y, max.z),
+        dx,
+        dy,
+        mat.clone(),
+    )));
+    // Right (+X)
+    sides.add(Box::new(Quad::new(
+        Point::new(max.x, min.y, max.z),
+        -dz,
+        dy,
+        mat.clone(),
+    )));
+    // Back (-Z)
+    sides.add(Box::new(Quad::new(
+        Point::new(max.x, min.y, min.z),
+        -dx,
+        dy,
+        mat.clone(),
+    )));
+    // Left (-X)
+    sides.add(Box::new(Quad::new(
+        Point::new(min.x, min.y, min.z),
+        dz,
+        dy,
+        mat.clone(),
+    )));
+    // Top (+Y)
+    sides.add(Box::new(Quad::new(
+        Point::new(min.x, max.y, max.z),
+        dx,
+        -dz,
+        mat.clone(),
+    )));
+    // Bottom (-Y)
+    sides.add(Box::new(Quad::new(
+        Point::new(min.x, min.y, min.z),
+        dx,
+        dz,
+        mat,
+    )));
+
+    Arc::new(sides)
 }
