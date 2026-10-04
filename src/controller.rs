@@ -28,7 +28,7 @@ impl CameraController {
             current: state,
             default: state,
             move_speed: 0.3,
-            rot_speed: 0.3,
+            rot_speed: 0.03, // ~1.7 degrees per frame (at 30 fps) for smooth, controllable rotation
         }
     }
 
@@ -73,6 +73,7 @@ impl CameraController {
         if move_vec.len_squared() > 1e-6 {
             let delta = move_vec.normalize() * self.move_speed;
             self.current.lookfrom = self.current.lookfrom + delta;
+            self.current.lookat = self.current.lookat + delta;
             changed = true;
         }
 
@@ -121,7 +122,6 @@ impl CameraController {
             let curr_right = curr_fwd.cross(self.current.vup).normalize();
             let curr_up = curr_fwd.cross(curr_right).normalize();
             let new_fwd = (curr_fwd * cos_a + curr_up * sin_a).normalize();
-            self.current.lookat = self.current.lookfrom + new_fwd;
 
             //  Gimbal Lock Guard:
             //    When new_fwd approaches ±Y (straight up/down):

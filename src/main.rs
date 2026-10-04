@@ -46,7 +46,7 @@ fn main() {
     let scene_id: usize = std::env::args()
         .nth(1)
         .and_then(|s| s.parse().ok())
-        .unwrap_or(9);
+        .unwrap_or(12);
 
     match scene_id {
         1 => bouncing_spheres(),
@@ -60,7 +60,8 @@ fn main() {
         9 => final_scene(800, 1000, 40),
         10 => final_scene(400, 250, 4),
         11 => planar_shapes(),
-        _ => final_scene(400, 250, 4),
+        12 => wall_and_sphere(),
+        _ => wall_and_sphere(),
     }
 }
 
@@ -479,45 +480,44 @@ pub fn cornell_box() {
     let green = Arc::new(Lambertian::from_color(Color::new(0.12, 0.45, 0.15)));
     let light = Arc::new(DiffuseLight::from_color(Color::new(15.0, 15.0, 15.0)));
 
-    // 5 Walls + Ceiling Light
     world.add(Box::new(Quad::new(
         Point::new(555.0, 0.0, 0.0),
-        Vec3::new(0.0, 555.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
+        Vec3::new(0.0, 555.0, 0.0),
         green,
     )));
     world.add(Box::new(Quad::new(
-        Point::new(0.0, 0.0, 0.0),
+        Point::new(0.0, 0.0, 555.0),
+        Vec3::new(0.0, 0.0, -555.0),
         Vec3::new(0.0, 555.0, 0.0),
-        Vec3::new(0.0, 0.0, 555.0),
         red,
     )));
     world.add(Box::new(Quad::new(
-        Point::new(343.0, 554.0, 332.0),
-        Vec3::new(-130.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -105.0),
-        light,
-    )));
-    world.add(Box::new(Quad::new(
-        Point::new(0.0, 0.0, 0.0),
+        Point::new(0.0, 555.0, 0.0),
         Vec3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
-        white.clone(),
-    )));
-    world.add(Box::new(Quad::new(
-        Point::new(555.0, 555.0, 555.0),
-        Vec3::new(-555.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -555.0),
         white.clone(),
     )));
     world.add(Box::new(Quad::new(
         Point::new(0.0, 0.0, 555.0),
         Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        white.clone(),
+    )));
+    world.add(Box::new(Quad::new(
+        Point::new(555.0, 0.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
         Vec3::new(0.0, 555.0, 0.0),
         white.clone(),
     )));
 
-    // Box 1 (Tall Block): 165 x 330 x 165, rotated 15 deg, translated to (265, 0, 295)
+    world.add(Box::new(Quad::new(
+        Point::new(213.0, 554.0, 227.0),
+        Vec3::new(130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 105.0),
+        light,
+    )));
+
     let box1 = box_primitive(
         Point::zero(),
         Point::new(165.0, 330.0, 165.0),
@@ -527,17 +527,15 @@ pub fn cornell_box() {
     let box1 = Box::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
     world.add(box1);
 
-    // Box 2 (Short Block): 165 x 165 x 165, rotated -18 deg, translated to (130, 0, 65)
     let box2 = box_primitive(Point::zero(), Point::new(165.0, 165.0, 165.0), white);
     let box2 = Arc::new(RotateY::new(box2, -18.0));
     let box2 = Box::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
     world.add(box2);
 
-    // Camera Configuration
     let aspect_ratio = 1.0;
     let img_w: usize = 600;
     let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
-    let samples_per_pixel: usize = 200;
+    let samples_per_pixel: usize = 64;
     let max_depth: usize = 50;
 
     let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
@@ -644,8 +642,7 @@ pub fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usiz
 
     // 1. 20x20 ground grid of boxes with random heights, grouped in a BVH
     let mut boxes1 = ObjectList::new();
-    let ground: Arc<dyn Material> =
-        Arc::new(Lambertian::from_color(Color::new(0.48, 0.83, 0.53)));
+    let ground: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.48, 0.83, 0.53)));
 
     let boxes_per_side = 20;
     for i in 0..boxes_per_side {
@@ -670,8 +667,7 @@ pub fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usiz
     world.add(Box::new(BVHNode::from_list(boxes1, &mut rng)));
 
     // 2. Ceiling light
-    let light: Arc<dyn Material> =
-        Arc::new(DiffuseLight::from_color(Color::new(7.0, 7.0, 7.0)));
+    let light: Arc<dyn Material> = Arc::new(DiffuseLight::from_color(Color::new(7.0, 7.0, 7.0)));
     world.add(Box::new(Quad::new(
         Point::new(123.0, 554.0, 147.0),
         Vec3::new(300.0, 0.0, 0.0),
@@ -748,8 +744,7 @@ pub fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usiz
 
     // 9. Cluster of 1000 spheres packed into a rotated and translated BVH
     let mut boxes2 = ObjectList::new();
-    let white: Arc<dyn Material> =
-        Arc::new(Lambertian::from_color(Color::new(0.73, 0.73, 0.73)));
+    let white: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.73, 0.73, 0.73)));
     let ns = 1000;
     for _ in 0..ns {
         boxes2.add(Box::new(Sphere::new(
@@ -779,5 +774,71 @@ pub fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usiz
     render(cam, world);
 }
 
+pub fn wall_and_sphere() {
+    let mut world = ObjectList::new();
 
+    let mat_white: Arc<dyn Material> = Arc::new(Lambertian::from_color(Color::new(0.8, 0.8, 0.8)));
 
+    world.add(Box::new(Quad::new(
+        Point::new(-100.0, 0.0, -100.0),
+        Vec3::new(200.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 200.0),
+        mat_white.clone(),
+    )));
+    // Left wall: extended in -X and increased height
+    world.add(Box::new(box_primitive(
+        Point::new(-200.0, -0.4117, -4.2269),
+        Point::new(-1.7399, 30.0, -3.6933),
+        mat_white.clone(),
+    )));
+    // Right wall: extended in +X and increased height
+    world.add(Box::new(box_primitive(
+        Point::new(1.1824, -0.4117, -4.2269),
+        Point::new(200.0, 30.0, -3.6933),
+        mat_white.clone(),
+    )));
+    world.add(Box::new(Sphere::new(
+        Point::new(0.0, 1.0104, 0.0),
+        1.0104,
+        mat_white,
+    )));
+
+    let mat_light_sphere: Arc<dyn Material> =
+        Arc::new(DiffuseLight::from_color(Color::new(17.0, 1.9904, 0.4035)));
+
+    world.add(Box::new(Sphere::new(
+        Point::new(-0.2300, 5.0943, -14.4500),
+        5.5494,
+        mat_light_sphere,
+    )));
+
+    let mat_light_plane: Arc<dyn Material> =
+        Arc::new(DiffuseLight::from_color(Color::new(0.1043, 0.1142, 1.0)));
+
+    world.add(Box::new(Quad::new(
+        Point::new(-15.3457, 18.0264, 42.5646),
+        Vec3::new(40.0, 0.0, 0.0),
+        Vec3::new(0.0, 21.9131, -33.4637),
+        mat_light_plane,
+    )));
+
+    let aspect_ratio = 16.0 / 9.0;
+    let img_w: usize = 1280;
+    let img_h = ((img_w as f32 / aspect_ratio) as usize).max(1);
+    let samples_per_pixel: usize = 1000;
+    let max_depth: usize = 50;
+
+    let mut cam = Camera::new(img_w, img_h, samples_per_pixel, max_depth);
+    cam.bg = Color::new(0.0, 0.0, 0.0);
+    cam.vfov = 24.29;
+    cam.lookfrom = Point::new(21.4289, 10.6728, 9.7920);
+
+    let forward = Vec3::new(-0.819350, -0.381050, -0.428330);
+    let focus_dist = 25.548;
+    cam.lookat = cam.lookfrom + forward * focus_dist;
+    cam.vup = Vec3::new(-0.337695, 0.924554, -0.176526);
+    cam.defocus_angle = 0.0;
+    cam.focus_dist = focus_dist;
+
+    render(cam, world);
+}
